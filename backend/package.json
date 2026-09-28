@@ -8,7 +8,6 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "libbys-app": "file:.."
+    "express": "^4.19.2"
   }
 }
