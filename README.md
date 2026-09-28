@@ -8,7 +8,7 @@ Installable to the home screen as a PWA.
 ## Structure
 
 ```
-backend/    Node + Express. POST /api/chat, serves the built frontend in production
+backend/    Node 22 + Express. POST /api/chat, serves the built frontend in production
 frontend/   React + Vite + Tailwind CSS v4
 package.json  Root scripts used for deployment
 ```
