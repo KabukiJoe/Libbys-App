@@ -14,7 +14,7 @@ app.post('/api/chat', (req, res) => {
     return res.status(400).json({ error: 'message is required' });
   }
   console.log('Received:', message);
-  res.json({ ok: true });
+  res.json({ reply: `This is a placeholder reply. You said: "${message}"` });
 });
 
 // Serve the built React app (production).
