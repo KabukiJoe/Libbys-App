@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install:all": "npm --prefix backend install && npm --prefix frontend install",
-    "dev:backend": "npm --prefix backend run dev",
-    "dev:frontend": "npm --prefix frontend run dev",
-    "build": "npm run install:all && npm --prefix frontend run build",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd backend && npm ci && cd ../frontend && npm ci && npm run build",
     "start": "node backend/server.js"
   },
   "engines": {
