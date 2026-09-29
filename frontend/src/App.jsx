@@ -71,7 +71,7 @@ export default function App() {
       {phase === 'reply' && (
         <div className="flex flex-1 flex-col gap-3">
           <div className="flex-1 overflow-y-auto whitespace-pre-wrap rounded-xl border border-gray-300 bg-white p-3.5 text-lg dark:border-gray-700 dark:bg-gray-800">
-            {reply}
+            {reply || <span className="opacity-50">(No reply text received)</span>}
           </div>
           <button
             type="button"
