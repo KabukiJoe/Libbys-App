@@ -24,7 +24,7 @@ export default function PasswordScreen({ onUnlock }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-center gap-3">
+    <form onSubmit={handleSubmit} className="flex animate-fade-up flex-col gap-3">
       <input
         type="password"
         autoFocus
@@ -32,12 +32,12 @@ export default function PasswordScreen({ onUnlock }) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Password"
-        className="h-14 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-lg focus:outline-2 focus:outline-blue-600 dark:border-gray-700 dark:bg-gray-800"
+        className="h-14 w-full rounded-2xl bg-white/80 px-4 text-lg shadow-lg shadow-violet-900/5 ring-1 ring-violet-200 backdrop-blur focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-white/10 dark:ring-white/10"
       />
       <button
         type="submit"
         disabled={!password || checking}
-        className="h-14 rounded-xl bg-blue-600 text-lg font-semibold text-white disabled:opacity-50"
+        className="h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-lg font-semibold text-white shadow-lg shadow-violet-600/30 transition active:scale-95 disabled:opacity-40 disabled:shadow-none"
       >
         {checking ? 'Checking…' : 'Unlock'}
       </button>
