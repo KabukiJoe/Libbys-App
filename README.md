@@ -1,14 +1,14 @@
 # Libby's App
 
-A minimal phone-first web app: type a message, hit send, read the chatbot's reply.
-Installable to the home screen as a PWA.
-
-> Status: the backend currently returns a placeholder reply. Real chatbot integration is still to do.
+A minimal phone-first web app: type a message, hit send, read your Kindroid kin's reply in a group chat.
+Installable to the home screen as a PWA. Protected by a shared password.
 
 ## Structure
 
 ```
-backend/    Node 22 + Express. POST /api/chat, serves the built frontend in production
+backend/    Node 22 + Express. /api (password-protected), serves the built frontend in production
+  kindroid.js   Kindroid API client
+  auth.js       Password check for /api
 frontend/   React + Vite + Tailwind CSS v4
 package.json  Root scripts used for deployment
 ```
@@ -20,6 +20,9 @@ Install dependencies once:
 ```
 npm run install:all
 ```
+
+Configure the backend: copy `backend/.env.example` to `backend/.env` and fill it in (see
+[Configuration](#configuration)). The dev script loads it automatically.
 
 Then run both in separate terminals:
 
@@ -47,16 +50,34 @@ npm start       # Express serves frontend/dist and the API
 2. In Railway: **New Project → Deploy from GitHub repo**.
 3. Railway runs `npm run build` and `npm start` from the repo root (change them in the service settings if
    it does not pick them up).
-4. **Settings → Networking → Generate Domain** to get an https URL.
+4. Add the [configuration](#configuration) variables under the service's **Variables** tab.
+5. **Settings → Networking → Generate Domain** to get an https URL.
 
 ### Installing on your phone
 
 Open the Railway URL in Chrome on Android, then **⋮ → Add to Home screen** (or **Install app**). It opens
 full-screen without the browser bar.
 
+## Configuration
+
+| Variable           | Description                                                                 |
+| ------------------ | --------------------------------------------------------------------------- |
+| `KINDROID_API_KEY` | Kindroid → Settings → General → API & advanced integrations                 |
+| `KINDROID_GROUP_ID`| The group chat the message is posted to                                      |
+| `KINDROID_AI_ID`   | The kin that replies (must be a member of the group)                         |
+| `APP_PASSWORD`     | Password you enter in the app. If unset, every API request is rejected.      |
+
+Locally these go in `backend/.env` (git-ignored), on Railway under **Variables**. Never put them in the
+frontend.
+
 ## API
 
-`POST /api/chat`
+All `/api` requests need `Authorization: Bearer <APP_PASSWORD>`; otherwise they get `401`.
+
+`GET /api/auth-check` → `{ "ok": true }` if the password is right.
+
+`POST /api/chat` posts the message to the group (Kindroid `/groupchats-user-message`), then asks the
+kin to reply (`/groupchats-ai-response`):
 
 ```json
 { "message": "hello" }
@@ -68,8 +89,4 @@ Response:
 { "reply": "..." }
 ```
 
-## Adding the chatbot
-
-Implement the call in `backend/server.js` inside the `/api/chat` handler. Keep API keys in environment
-variables (locally in a `.env` file, which is git-ignored; on Railway under **Variables**). Never put them
-in the frontend.
+On failure it returns `502` with `{ "error": "..." }`.

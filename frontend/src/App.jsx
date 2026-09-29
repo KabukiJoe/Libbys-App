@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { sendMessage } from './api.js';
+import { getStoredPassword, sendMessage, storePassword, UnauthorizedError } from './api.js';
+import PasswordScreen from './PasswordScreen.jsx';
 
 export default function App() {
   const [text, setText] = useState('');
-  const [phase, setPhase] = useState('compose'); // 'compose' | 'sending' | 'reply' | 'error'
+  // 'locked' | 'compose' | 'sending' | 'reply' | 'error'
+  const [phase, setPhase] = useState(() => (getStoredPassword() ? 'compose' : 'locked'));
   const [reply, setReply] = useState('');
   const [error, setError] = useState('');
 
@@ -19,6 +21,11 @@ export default function App() {
       setReply(data.reply);
       setPhase('reply');
     } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        storePassword('');
+        setPhase('locked');
+        return;
+      }
       setError(err.message);
       setPhase('error');
     }
@@ -33,6 +40,8 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col bg-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-gray-900 dark:bg-gray-900 dark:text-gray-50">
+      {phase === 'locked' && <PasswordScreen onUnlock={() => setPhase('compose')} />}
+
       {phase === 'compose' && (
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-3">
           <textarea
