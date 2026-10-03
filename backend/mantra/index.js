@@ -20,8 +20,13 @@ function planIfDue(now) {
   store.update((data) => {
     data.schedule = { date: plan.date, slots: plan.slots.map((at) => ({ at, status: 'pending', tries: 0 })) };
   });
-  const times = plan.slots.map((at) => formatLocal(at, config)).join(', ');
-  console.log(`Planned ${plan.slots.length} mantra(s) for ${plan.date}: ${times || '(none, window already over)'}`);
+  // The schedule stays secret, also in the logs, unless MANTRA_LOG_SCHEDULE=true (for debugging).
+  if (process.env.MANTRA_LOG_SCHEDULE === 'true') {
+    const times = plan.slots.map((at) => formatLocal(at, config)).join(', ');
+    console.log(`Planned ${plan.slots.length} mantra(s) for ${plan.date}: ${times || '(none)'}`);
+  } else {
+    console.log(`Planned today's mantras (${plan.date})`);
+  }
 }
 
 function expireOpen(now) {
@@ -114,17 +119,12 @@ function getStatus() {
   expireOpen(now);
   const data = store.load();
   const open = data.mantras.find((m) => m.status === 'open');
-  const { date } = localDay(now, config);
-  const slots = data.schedule.date === date ? data.schedule.slots : [];
 
+  // Deliberately nothing about today's schedule: when and how many mantras come must stay a surprise.
   return {
     now,
     open: open ? { id: open.id, text: open.text, deadline: open.deadline } : null,
     stats: data.stats,
-    today: {
-      planned: slots.length,
-      remaining: slots.filter((slot) => slot.status === 'pending').length,
-    },
   };
 }
 

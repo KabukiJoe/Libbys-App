@@ -168,11 +168,7 @@ export default function MantraScreen({ onHome, onLocked }) {
               🧘
             </p>
             <p className="mt-2 text-lg font-semibold">No mantra right now</p>
-            <p className="mt-1 text-sm opacity-70">
-              {status.today.remaining > 0
-                ? `${status.today.remaining} more coming today.`
-                : 'All done for today.'}
-            </p>
+            <p className="mt-1 text-sm opacity-70">You'll get a notification when the next one arrives.</p>
           </div>
         )}
 
