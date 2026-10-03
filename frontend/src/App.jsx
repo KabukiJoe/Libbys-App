@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { getStoredPassword, sendMessage, storePassword, UnauthorizedError } from './api.js';
+import { addToHistory, loadHistory } from './history.js';
 import PasswordScreen from './PasswordScreen.jsx';
 import ActionButton from './components/ActionButton.jsx';
 import Bubble from './components/Bubble.jsx';
+import HistoryList, { formatDate } from './components/HistoryList.jsx';
 import TypingIndicator from './components/TypingIndicator.jsx';
 
 function SendIcon() {
@@ -13,12 +15,26 @@ function SendIcon() {
   );
 }
 
+function HistoryIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+const conversationPhases = ['sending', 'reply', 'error'];
+
 export default function App() {
   const [text, setText] = useState('');
-  // 'locked' | 'compose' | 'sending' | 'reply' | 'error'
+  // 'locked' | 'compose' | 'sending' | 'reply' | 'error' | 'history' | 'history-entry'
   const [phase, setPhase] = useState(() => (getStoredPassword() ? 'compose' : 'locked'));
   const [reply, setReply] = useState('');
   const [error, setError] = useState('');
+  const [history, setHistory] = useState(loadHistory);
+  const [selectedEntry, setSelectedEntry] = useState(null);
 
   const trimmed = text.trim();
 
@@ -30,6 +46,7 @@ export default function App() {
     try {
       const data = await sendMessage(trimmed);
       setReply(data.reply);
+      setHistory(addToHistory(trimmed, data.reply));
       setPhase('reply');
     } catch (err) {
       if (err instanceof UnauthorizedError) {
@@ -49,28 +66,62 @@ export default function App() {
     setPhase('compose');
   }
 
+  function openHistory() {
+    // Coming from a finished reply, start fresh afterwards; from compose, keep the draft.
+    if (phase === 'reply') reset({ keepText: false });
+    setPhase('history');
+  }
+
+  function openEntry(entry) {
+    setSelectedEntry(entry);
+    setPhase('history-entry');
+  }
+
   return (
     <div className="flex h-full flex-col bg-gradient-to-br from-violet-100 via-fuchsia-50 to-sky-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-gray-900 dark:from-gray-950 dark:via-violet-950 dark:to-gray-950 dark:text-gray-50">
-      <header className="mb-4 flex h-11 items-center justify-between">
+      <header className="mb-4 flex h-11 items-center justify-between gap-2">
         <h1 className="bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-2xl font-bold text-transparent dark:from-violet-400 dark:to-fuchsia-400">
-          Libby
+          {phase.startsWith('history') ? 'History' : 'Libby'}
         </h1>
 
-        {phase === 'compose' && (
-          <ActionButton type="submit" form="compose" disabled={!trimmed}>
-            Send <SendIcon />
-          </ActionButton>
-        )}
-        {phase === 'reply' && (
-          <ActionButton type="button" onClick={() => reset({ keepText: false })}>
-            New message
-          </ActionButton>
-        )}
-        {phase === 'error' && (
-          <ActionButton type="button" onClick={() => reset({ keepText: true })}>
-            Back
-          </ActionButton>
-        )}
+        <div className="flex items-center gap-2">
+          {(phase === 'compose' || phase === 'reply') && (
+            <button
+              type="button"
+              onClick={openHistory}
+              aria-label="History"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-violet-700 transition active:scale-95 active:bg-violet-200/60 dark:text-violet-300 dark:active:bg-white/10"
+            >
+              <HistoryIcon />
+            </button>
+          )}
+
+          {phase === 'compose' && (
+            <ActionButton type="submit" form="compose" disabled={!trimmed}>
+              Send <SendIcon />
+            </ActionButton>
+          )}
+          {phase === 'reply' && (
+            <ActionButton type="button" onClick={() => reset({ keepText: false })}>
+              New message
+            </ActionButton>
+          )}
+          {phase === 'error' && (
+            <ActionButton type="button" onClick={() => reset({ keepText: true })}>
+              Back
+            </ActionButton>
+          )}
+          {phase === 'history' && (
+            <ActionButton type="button" onClick={() => setPhase('compose')}>
+              Back
+            </ActionButton>
+          )}
+          {phase === 'history-entry' && (
+            <ActionButton type="button" onClick={() => setPhase('history')}>
+              Back
+            </ActionButton>
+          )}
+        </div>
       </header>
 
       {phase === 'locked' && <PasswordScreen onUnlock={() => setPhase('compose')} />}
@@ -87,7 +138,7 @@ export default function App() {
         </form>
       )}
 
-      {phase !== 'locked' && phase !== 'compose' && (
+      {conversationPhases.includes(phase) && (
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
           <Bubble from="me">{trimmed}</Bubble>
 
@@ -104,6 +155,18 @@ export default function App() {
               Failed: {error}
             </p>
           )}
+        </div>
+      )}
+
+      {phase === 'history' && <HistoryList entries={history} onSelect={openEntry} />}
+
+      {phase === 'history-entry' && selectedEntry && (
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
+          <p className="text-center text-xs opacity-50">{formatDate(selectedEntry.at)}</p>
+          <Bubble from="me">{selectedEntry.message}</Bubble>
+          <Bubble from="kin">
+            {selectedEntry.reply || <span className="opacity-50">(No reply text received)</span>}
+          </Bubble>
         </div>
       )}
     </div>
