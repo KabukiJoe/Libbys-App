@@ -1,7 +1,9 @@
 const express = require('express');
 const path = require('path');
 const { requirePassword } = require('./auth');
-const { sendToGroup } = require('./kindroid');
+const { askKin } = require('./kindroid');
+const { startScheduler } = require('./mantra');
+const mantraRoutes = require('./mantra/routes');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -20,7 +22,7 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'message is required' });
   }
   try {
-    const reply = await sendToGroup(message);
+    const reply = await askKin({ groupId: process.env.KINDROID_GROUP_ID, message });
     res.json({ reply });
   } catch (err) {
     console.error('Chat failed:', err.message);
@@ -28,7 +30,12 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+app.use('/api', mantraRoutes);
+
 // Serve the built React app (production).
 app.use(express.static(distDir));
 
-app.listen(port, () => console.log(`Listening on port ${port}`));
+app.listen(port, () => {
+  console.log(`Listening on port ${port}`);
+  startScheduler();
+});

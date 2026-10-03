@@ -1,4 +1,4 @@
-const BASE_URL = 'https://api.kindroid.ai/v1';
+const BASE_URL = process.env.KINDROID_BASE_URL || 'https://api.kindroid.ai/v1';
 const TIMEOUT_MS = 120_000;
 // Look this far back in history, to allow for clock differences between us and Kindroid.
 const HISTORY_WINDOW_MS = 60_000;
@@ -8,13 +8,11 @@ const HISTORY_RETRY_DELAY_MS = 1500;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function getConfig() {
-  const { KINDROID_API_KEY: apiKey, KINDROID_GROUP_ID: groupId, KINDROID_AI_ID: aiId } = process.env;
-  if (!apiKey || !groupId || !aiId) {
-    throw new Error(
-      'Kindroid is not configured (KINDROID_API_KEY / KINDROID_GROUP_ID / KINDROID_AI_ID missing)',
-    );
+  const { KINDROID_API_KEY: apiKey, KINDROID_AI_ID: aiId } = process.env;
+  if (!apiKey || !aiId) {
+    throw new Error('Kindroid is not configured (KINDROID_API_KEY / KINDROID_AI_ID missing)');
   }
-  return { apiKey, groupId, aiId };
+  return { apiKey, aiId };
 }
 
 // Calls a Kindroid endpoint and returns the raw response body.
@@ -48,9 +46,10 @@ async function request(method, path, apiKey, payload) {
   return { body, contentType: res.headers.get('content-type') };
 }
 
-// Posts the user's message to the group chat, then has the main kin reply to it.
-async function sendToGroup(message) {
-  const { apiKey, groupId, aiId } = getConfig();
+// Posts a message to the given group chat, then has the main kin reply to it.
+async function askKin({ groupId, message }) {
+  const { apiKey, aiId } = getConfig();
+  if (!groupId) throw new Error('Kindroid group is not configured');
   const sentAt = Date.now();
 
   await request('POST', '/groupchats-user-message', apiKey, { group_id: groupId, message });
@@ -133,4 +132,4 @@ function extractReply(body) {
   }
 }
 
-module.exports = { sendToGroup };
+module.exports = { askKin };

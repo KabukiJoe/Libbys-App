@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { checkPassword, storePassword, UnauthorizedError } from './api.js';
+import { checkPassword, storePassword, UnauthorizedError } from '../api.js';
 
 export default function PasswordScreen({ onUnlock }) {
   const [password, setPassword] = useState('');

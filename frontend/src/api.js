@@ -45,3 +45,25 @@ export function sendMessage(message) {
     body: JSON.stringify({ message }),
   });
 }
+
+export function getMantra() {
+  return request('/api/mantra');
+}
+
+export function answerMantra(id, answer) {
+  return request(`/api/mantra/${encodeURIComponent(id)}/answer`, {
+    method: 'POST',
+    body: JSON.stringify({ answer }),
+  });
+}
+
+export function getPushPublicKey() {
+  return request('/api/push/public-key');
+}
+
+export function subscribePush(subscription) {
+  return request('/api/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ subscription }),
+  });
+}
