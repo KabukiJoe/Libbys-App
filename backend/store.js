@@ -9,7 +9,7 @@ const EMPTY = () => ({
   schedule: { date: null, slots: [] },
   mantras: [],
   stats: { success: 0, failed: 0 },
-  pushSubscriptions: [],
+  pushTokens: [],
 });
 
 let data = null;
@@ -18,6 +18,7 @@ function load() {
   if (data) return data;
   try {
     data = { ...EMPTY(), ...JSON.parse(fs.readFileSync(FILE, 'utf8')) };
+    delete data.pushSubscriptions; // legacy web-push subscriptions
   } catch (err) {
     if (err.code !== 'ENOENT') console.error(`Could not read ${FILE}, starting empty:`, err.message);
     data = EMPTY();

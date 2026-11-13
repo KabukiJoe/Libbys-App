@@ -1,46 +1,68 @@
-const webpush = require('web-push');
-const store = require('../store');
+const defaultStore = require('../store');
 
-const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT } = process.env;
-const enabled = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_SUBJECT);
+const INVALID_TOKEN_CODES = ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'];
 
-if (enabled) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-} else {
-  console.warn('Push notifications disabled (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT missing)');
+// Returns a firebase-admin Messaging, or null (push disabled) if the service account is missing or invalid.
+function initMessagingFromEnv(env = process.env) {
+  try {
+    const { initializeApp, cert } = require('firebase-admin/app');
+    const { getMessaging } = require('firebase-admin/messaging');
+    const app = initializeApp({ credential: cert(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT)) });
+    return getMessaging(app);
+  } catch {
+    console.warn('Push notifications disabled (FIREBASE_SERVICE_ACCOUNT missing or invalid)');
+    return null;
+  }
 }
 
-function addSubscription(subscription) {
-  store.update((data) => {
-    data.pushSubscriptions = data.pushSubscriptions.filter((s) => s.endpoint !== subscription.endpoint);
-    data.pushSubscriptions.push(subscription);
-  });
-}
-
-// Sends to every subscribed device; drops subscriptions the push service says are gone.
-async function notifyAll(payload) {
-  if (!enabled) return;
-  const subscriptions = store.load().pushSubscriptions;
-  const gone = [];
-
-  await Promise.all(
-    subscriptions.map(async (subscription) => {
-      try {
-        // TTL: a mantra notification is useless after the answer time is over.
-        await webpush.sendNotification(subscription, JSON.stringify(payload), { TTL: 300, urgency: 'high' });
-      } catch (err) {
-        if (err.statusCode === 404 || err.statusCode === 410) gone.push(subscription.endpoint);
-        else console.error('Push failed:', err.statusCode || '', err.message);
-      }
-    }),
-  );
-
-  if (gone.length) {
+function createPush({ messaging, store }) {
+  function addToken(token) {
     store.update((data) => {
-      data.pushSubscriptions = data.pushSubscriptions.filter((s) => !gone.includes(s.endpoint));
+      if (!data.pushTokens.includes(token)) data.pushTokens.push(token);
     });
   }
-  console.log(`Push sent to ${subscriptions.length - gone.length} device(s)`);
+
+  // Sends to every registered device; drops tokens FCM says are gone. Never throws.
+  async function notifyAll({ title, body }) {
+    if (!messaging) return;
+    const tokens = [...store.load().pushTokens];
+    if (!tokens.length) return;
+
+    let response;
+    try {
+      response = await messaging.sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+        data: { open: 'mantra' },
+        // TTL: a mantra notification is useless after the answer time is over.
+        android: { priority: 'high', ttl: 300000, notification: { channelId: 'mantra' } },
+      });
+    } catch (err) {
+      console.error('Push failed:', err.message);
+      return;
+    }
+
+    const gone = tokens.filter((_, i) => {
+      const result = response.responses[i];
+      return result && !result.success && INVALID_TOKEN_CODES.includes(result.error?.code);
+    });
+    if (gone.length) {
+      store.update((data) => {
+        data.pushTokens = data.pushTokens.filter((t) => !gone.includes(t));
+      });
+    }
+    console.log(`Push sent to ${tokens.length - gone.length} device(s)`);
+  }
+
+  return { enabled: Boolean(messaging), addToken, notifyAll };
 }
 
-module.exports = { enabled, publicKey: VAPID_PUBLIC_KEY, addSubscription, notifyAll };
+const instance = createPush({ messaging: initMessagingFromEnv(), store: defaultStore });
+
+module.exports = {
+  createPush,
+  initMessagingFromEnv,
+  enabled: instance.enabled,
+  addToken: instance.addToken,
+  notifyAll: instance.notifyAll,
+};

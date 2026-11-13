@@ -29,15 +29,10 @@ router.post('/mantra/trigger', async (req, res) => {
   }
 });
 
-router.get('/push/public-key', (req, res) => {
-  if (!push.enabled) return res.status(503).json({ error: 'Push notifications are not configured' });
-  res.json({ publicKey: push.publicKey });
-});
-
 router.post('/push/subscribe', (req, res) => {
-  const { subscription } = req.body || {};
-  if (!subscription?.endpoint) return res.status(400).json({ error: 'subscription is required' });
-  push.addSubscription(subscription);
+  const { token } = req.body || {};
+  if (typeof token !== 'string' || !token) return res.status(400).json({ error: 'token is required' });
+  push.addToken(token);
   res.json({ ok: true });
 });
 
