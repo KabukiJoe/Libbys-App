@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Libby\'s App</string>
+    <string name="title_activity_main">Libby\'s App</string>
+    <string name="package_name">app.libbys</string>
+    <string name="custom_url_scheme">app.libbys</string>
+</resources>

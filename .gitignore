@@ -4,3 +4,4 @@ dist
 backend/data
 
 frontend/.env.production
+frontend/android/app/google-services.json
