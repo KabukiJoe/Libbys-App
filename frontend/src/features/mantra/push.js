@@ -10,11 +10,42 @@ export async function pushPermission() {
   return receive === 'prompt-with-rationale' ? 'prompt' : receive;
 }
 
-// Asks for permission if needed, then registers with FCM. The token reaches the server via the `registration` listener.
+const REGISTER_TIMEOUT_MS = 20_000;
+
+// The enablePush call currently waiting for the registration outcome, if any.
+let pending = null;
+
+// Outcome of a registration (token sent to the server, or an error): settles enablePush, else goes to onBackgroundError.
+let onBackgroundError = (err) => console.error('Push registration failed:', err);
+
+function settle(err) {
+  if (!pending) {
+    if (err) onBackgroundError(err);
+    return;
+  }
+  const { resolve, reject, timer } = pending;
+  pending = null;
+  clearTimeout(timer);
+  if (err) reject(err);
+  else resolve();
+}
+
+// Asks for permission if needed, registers with FCM and sends the token to the server.
+// Rejects if permission is denied, FCM registration fails or the server rejects the token.
 export async function enablePush() {
   const { receive } = await PushNotifications.requestPermissions();
   if (receive !== 'granted') throw new Error('Notifications were not allowed');
-  await PushNotifications.register();
+
+  const done = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => settle(new Error('Notification setup timed out')), REGISTER_TIMEOUT_MS);
+    pending = { resolve, reject, timer };
+  });
+  try {
+    await PushNotifications.register();
+  } catch (err) {
+    settle(err);
+  }
+  return done;
 }
 
 // If notifications are already allowed, register again so the server knows this device (the token can change).
@@ -25,16 +56,17 @@ export async function syncPush() {
 let initialized = false;
 
 // Call once at app startup so a tap that cold-starts the app is not missed.
-export function initPush({ onOpenMantra, onMantraReceived }) {
+export function initPush({ onOpenMantra, onMantraReceived, onError }) {
   if (!pushSupported() || initialized) return;
   initialized = true;
+  if (onError) onBackgroundError = onError;
 
   PushNotifications.createChannel({ id: 'mantra', name: 'Mantras', importance: 5 }).catch(console.error);
 
   PushNotifications.addListener('registration', (token) => {
-    subscribePush(token.value).catch((err) => console.error('Push subscribe failed:', err));
+    subscribePush(token.value).then(() => settle(), settle);
   });
-  PushNotifications.addListener('registrationError', (err) => console.error('Push registration failed:', err));
+  PushNotifications.addListener('registrationError', (err) => settle(new Error(err.error || 'Push registration failed')));
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
     if (action.notification.data?.open === 'mantra') onOpenMantra();
   });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getStoredPassword } from './api.js';
+import { getStoredPassword, storePassword, UnauthorizedError } from './api.js';
 import MantraBanner from './features/mantra/MantraBanner.jsx';
 import MantraScreen from './features/mantra/MantraScreen.jsx';
 import { initPush, syncPush } from './features/mantra/push.js';
@@ -17,17 +17,27 @@ export default function App() {
   // Registered at startup so tapping a notification that cold-starts the app still lands on the mantra.
   useEffect(() => {
     initPush({
-      onOpenMantra: () => {
-        setBanner(false);
-        setScreen('mantra');
-      },
+      onOpenMantra: () => setScreen('mantra'),
       onMantraReceived: () => setBanner(true),
+      onError: (err) => {
+        if (err instanceof UnauthorizedError) {
+          storePassword('');
+          setUnlocked(false);
+        } else {
+          console.error('Push registration failed:', err);
+        }
+      },
     });
   }, []);
 
   useEffect(() => {
     if (unlocked) syncPush().catch((err) => console.error('Push sync failed:', err));
   }, [unlocked]);
+
+  // The banner is only for a mantra that arrives elsewhere; it is moot once the Mantra screen is open.
+  useEffect(() => {
+    if (screen === 'mantra' && banner) setBanner(false);
+  }, [screen, banner]);
 
   const goHome = () => setScreen('home');
 
@@ -42,10 +52,7 @@ export default function App() {
 
       {unlocked && banner && screen !== 'mantra' && (
         <MantraBanner
-          onOpen={() => {
-            setBanner(false);
-            setScreen('mantra');
-          }}
+          onOpen={() => setScreen('mantra')}
           onDismiss={() => setBanner(false)}
         />
       )}
