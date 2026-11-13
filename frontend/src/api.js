@@ -60,13 +60,9 @@ export function answerMantra(id, answer) {
   });
 }
 
-export function getPushPublicKey() {
-  return request('/api/push/public-key');
-}
-
-export function subscribePush(subscription) {
+export function subscribePush(token) {
   return request('/api/push/subscribe', {
     method: 'POST',
-    body: JSON.stringify({ subscription }),
+    body: JSON.stringify({ token }),
   });
 }

@@ -1,37 +1,44 @@
-import { getPushPublicKey, subscribePush } from '../../api.js';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { subscribePush } from '../../api.js';
 
-export const pushSupported = () =>
-  window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+export const pushSupported = () => Capacitor.isNativePlatform();
 
-export const pushPermission = () => (pushSupported() ? Notification.permission : 'unsupported');
-
-function urlBase64ToUint8Array(base64) {
-  const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
-  return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+export async function pushPermission() {
+  if (!pushSupported()) return 'unsupported';
+  const { receive } = await PushNotifications.checkPermissions();
+  return receive === 'prompt-with-rationale' ? 'prompt' : receive;
 }
 
-// Subscribes this device and registers it with the server. Asks for permission if needed.
+// Asks for permission if needed, then registers with FCM. The token reaches the server via the `registration` listener.
 export async function enablePush() {
-  if (!pushSupported()) throw new Error('Notifications are not supported here');
-  if ((await Notification.requestPermission()) !== 'granted') throw new Error('Notifications were not allowed');
-
-  const registration = await navigator.serviceWorker.ready;
-  let subscription = await registration.pushManager.getSubscription();
-  if (!subscription) {
-    const { publicKey } = await getPushPublicKey();
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
-  }
-  await subscribePush(subscription.toJSON());
+  const { receive } = await PushNotifications.requestPermissions();
+  if (receive !== 'granted') throw new Error('Notifications were not allowed');
+  await PushNotifications.register();
 }
 
-// If notifications are already allowed, make sure the server knows this device (e.g. after a data reset).
+// If notifications are already allowed, register again so the server knows this device (the token can change).
 export async function syncPush() {
-  if (pushPermission() !== 'granted') return;
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.getSubscription();
-  if (subscription) await subscribePush(subscription.toJSON());
-  else await enablePush();
+  if ((await pushPermission()) === 'granted') await PushNotifications.register();
+}
+
+let initialized = false;
+
+// Call once at app startup so a tap that cold-starts the app is not missed.
+export function initPush({ onOpenMantra, onMantraReceived }) {
+  if (!pushSupported() || initialized) return;
+  initialized = true;
+
+  PushNotifications.createChannel({ id: 'mantra', name: 'Mantras', importance: 5 }).catch(console.error);
+
+  PushNotifications.addListener('registration', (token) => {
+    subscribePush(token.value).catch((err) => console.error('Push subscribe failed:', err));
+  });
+  PushNotifications.addListener('registrationError', (err) => console.error('Push registration failed:', err));
+  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    if (action.notification.data?.open === 'mantra') onOpenMantra();
+  });
+  PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    if (notification.data?.open === 'mantra') onMantraReceived();
+  });
 }

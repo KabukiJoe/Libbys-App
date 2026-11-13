@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { answerMantra, getMantra, storePassword, UnauthorizedError } from '../../api.js';
 import ActionButton from '../../components/ActionButton.jsx';
 import Header from '../../components/Header.jsx';
-import { enablePush, pushPermission, syncPush } from './push.js';
+import { enablePush, pushPermission } from './push.js';
 
 const POLL_MS = 15_000;
 
@@ -21,7 +21,7 @@ export default function MantraScreen({ onHome, onLocked }) {
   const [result, setResult] = useState(null); // response of the last answer, shown until dismissed
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [permission, setPermission] = useState(pushPermission);
+  const [permission, setPermission] = useState(null); // null until checked
   const [pushError, setPushError] = useState('');
   const clockOffset = useRef(0); // server time minus phone time
 
@@ -61,7 +61,7 @@ export default function MantraScreen({ onHome, onLocked }) {
   }, [refresh]);
 
   useEffect(() => {
-    syncPush().catch(() => {});
+    pushPermission().then(setPermission);
   }, []);
 
   const open = result ? null : status?.open;
@@ -110,7 +110,7 @@ export default function MantraScreen({ onHome, onLocked }) {
     } catch (err) {
       if (!handleError(err)) setPushError(err.message);
     }
-    setPermission(pushPermission());
+    setPermission(await pushPermission());
   }
 
   return (
@@ -181,11 +181,9 @@ export default function MantraScreen({ onHome, onLocked }) {
           </div>
         )}
 
-        {permission !== 'granted' && (
+        {permission && permission !== 'granted' && permission !== 'unsupported' && (
           <div className={`${card} text-center text-sm`}>
-            {permission === 'unsupported' ? (
-              <p className="opacity-70">Notifications need the installed app on https.</p>
-            ) : permission === 'denied' ? (
+            {permission === 'denied' ? (
               <p className="opacity-70">Notifications are blocked. Allow them in the phone's app settings.</p>
             ) : (
               <button type="button" onClick={handleEnablePush} className="font-semibold text-violet-700 dark:text-violet-300">

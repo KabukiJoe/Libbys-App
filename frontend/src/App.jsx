@@ -1,23 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getStoredPassword } from './api.js';
+import MantraBanner from './features/mantra/MantraBanner.jsx';
 import MantraScreen from './features/mantra/MantraScreen.jsx';
+import { initPush, syncPush } from './features/mantra/push.js';
 import PermissionScreen from './features/permission/PermissionScreen.jsx';
 import HomeScreen from './screens/HomeScreen.jsx';
 import PasswordScreen from './screens/PasswordScreen.jsx';
 import Header from './components/Header.jsx';
 
-// Tapping a mantra notification opens /?open=mantra.
-function initialScreen() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('open') !== 'mantra') return 'home';
-  window.history.replaceState(null, '', window.location.pathname);
-  return 'mantra';
-}
-
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => Boolean(getStoredPassword()));
   // 'home' | 'permission' | 'mantra'
-  const [screen, setScreen] = useState(initialScreen);
+  const [screen, setScreen] = useState('home');
+  const [banner, setBanner] = useState(false); // a mantra arrived while the app was open
+
+  // Registered at startup so tapping a notification that cold-starts the app still lands on the mantra.
+  useEffect(() => {
+    initPush({
+      onOpenMantra: () => {
+        setBanner(false);
+        setScreen('mantra');
+      },
+      onMantraReceived: () => setBanner(true),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (unlocked) syncPush().catch((err) => console.error('Push sync failed:', err));
+  }, [unlocked]);
 
   const goHome = () => setScreen('home');
 
@@ -28,6 +38,16 @@ export default function App() {
           <Header title="Libby" />
           <PasswordScreen onUnlock={() => setUnlocked(true)} />
         </>
+      )}
+
+      {unlocked && banner && screen !== 'mantra' && (
+        <MantraBanner
+          onOpen={() => {
+            setBanner(false);
+            setScreen('mantra');
+          }}
+          onDismiss={() => setBanner(false)}
+        />
       )}
 
       {unlocked && screen === 'home' && <HomeScreen onOpen={setScreen} />}
