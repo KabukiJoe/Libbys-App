@@ -59,5 +59,39 @@ test('answers are case sensitive, outer whitespace ignored', () => {
   assert.ok(isCorrect('  I am calm. \n', 'I am calm.'));
   assert.ok(!isCorrect('i am calm.', 'I am calm.'));
   assert.ok(!isCorrect('I am calm', 'I am calm.'));
-  assert.ok(!isCorrect('I am  calm.', 'I am calm.'));
+  assert.ok(!isCorrect('I am calme.', 'I am calm.'));
+});
+
+test('typographic apostrophes and quotes match the plain keyboard ones', () => {
+  assert.ok(isCorrect("I am Libby's.", 'I am Libby’s.'));
+  assert.ok(isCorrect('I am Libby’s.', "I am Libby's."));
+  for (const q of ['‘', '‚', '´', '`', 'ʼ']) assert.ok(isCorrect("Libby's", `Libby${q}s`), q);
+  for (const q of ['“…”', '„…“', '«…»']) {
+    const text = `She said ${q[0]}obey${q[2]}.`;
+    assert.ok(isCorrect('She said "obey".', text), text);
+  }
+});
+
+test('dashes, ellipsis and special spaces match their plain versions', () => {
+  assert.ok(isCorrect('Calm - and quiet.', 'Calm – and quiet.'));
+  assert.ok(isCorrect('Calm - and quiet.', 'Calm — and quiet.'));
+  assert.ok(isCorrect('I wait...', 'I wait…'));
+  assert.ok(isCorrect('I am calm.', 'I am calm.'));
+  assert.ok(isCorrect('I am  calm.', 'I am calm.'));
+  assert.ok(isCorrect('I am\ncalm.', 'I am calm.'));
+});
+
+test('emojis are ignored', () => {
+  assert.ok(isCorrect('I am calm.', 'I am calm. 💜'));
+  assert.ok(isCorrect('I am calm.', 'I am 🧘‍♀️ calm.'));
+  assert.ok(isCorrect('I am calm. 💜', 'I am calm.'));
+});
+
+test('case, letters and punctuation stay strict', () => {
+  assert.ok(!isCorrect("i am libby's.", "I am Libby's."));
+  assert.ok(!isCorrect('Ich gehore Libby.', 'Ich gehöre Libby.'));
+  assert.ok(!isCorrect('Libbys toy.', 'Libby’s toy.'));
+  assert.ok(!isCorrect('I obey', 'I obey!'));
+  assert.ok(!isCorrect('Calm and quiet.', 'Calm – and quiet.'));
+  assert.ok(isCorrect('Ich gehöre Libby.', 'Ich gehöre Libby.'));
 });

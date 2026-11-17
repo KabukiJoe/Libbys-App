@@ -10,7 +10,21 @@ const MAX_LATE_MS = 15 * 60 * 1000;
 
 let firing = false;
 
-const isCorrect = (answer, text) => answer.trim() === text.trim();
+// Makes characters that are hard to type on a phone keyboard compare equal to their plain versions.
+// Case, letters and punctuation stay strict.
+function normalizeMantra(value) {
+  return value
+    .normalize('NFC')
+    .replace(/[‘’‚‛´`ʼ′]/g, "'")
+    .replace(/[“”„‟«»″]/g, '"')
+    .replace(/[‐‑‒–—―−]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}️​-‍⁠﻿]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const isCorrect = (answer, text) => normalizeMantra(answer) === normalizeMantra(text);
 
 function planIfDue(now) {
   const { date, pastPlanTime } = localDay(now, config);
