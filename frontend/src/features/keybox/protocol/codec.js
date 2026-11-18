@@ -59,7 +59,9 @@ export async function decodeResponse(bytes, aesKey) {
   }
   const command = bytes[9]
   const body = bytes.subarray(12, 12 + len)
-  if (len === 0) return { command, response: undefined, data: new Uint8Array(0), plaintext: new Uint8Array(0) }
+  if (len === 0) {
+    return { command, commandType: undefined, response: undefined, data: new Uint8Array(0), plaintext: new Uint8Array(0) }
+  }
   if (!aesKey) throw new KeyboxProtocolError('no-key', 'AES key has not been set')
   let plaintext
   try {
@@ -67,5 +69,6 @@ export async function decodeResponse(bytes, aesKey) {
   } catch {
     throw new KeyboxProtocolError('decrypt', 'AES decryption failed')
   }
-  return { command, response: plaintext[1], data: plaintext.slice(2), plaintext }
+  // `command` is the envelope byte (0x54 COMM_RESPONSE on replies); `commandType` is the command answered.
+  return { command, commandType: plaintext[0], response: plaintext[1], data: plaintext.slice(2), plaintext }
 }

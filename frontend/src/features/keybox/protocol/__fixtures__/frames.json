@@ -214,8 +214,8 @@
       "commandType": 85,
       "responseCode": 1
     },
-    "bytesHex": "7f5a0503010001000155aa10cbfba0fc33018aca80eabed45b0b22346f",
-    "wireHex": "7f5a0503010001000155aa10cbfba0fc33018aca80eabed45b0b22346f0d0a",
+    "bytesHex": "7f5a0503010001000154aa10cbfba0fc33018aca80eabed45b0b2234b6",
+    "wireHex": "7f5a0503010001000154aa10cbfba0fc33018aca80eabed45b0b2234b60d0a",
     "expected": {
       "command": "CheckUserTimeCommand",
       "commandType": 85,
@@ -251,8 +251,8 @@
       "commandType": 71,
       "responseCode": 1
     },
-    "bytesHex": "7f5a0503010001000147aa206ec33e5d2783aebee45d583e1c704e41ce094a07eb3a01751b84e7ec64e7a43664",
-    "wireHex": "7f5a0503010001000147aa206ec33e5d2783aebee45d583e1c704e41ce094a07eb3a01751b84e7ec64e7a436640d0a",
+    "bytesHex": "7f5a0503010001000154aa206ec33e5d2783aebee45d583e1c704e41ce094a07eb3a01751b84e7ec64e7a436c3",
+    "wireHex": "7f5a0503010001000154aa206ec33e5d2783aebee45d583e1c704e41ce094a07eb3a01751b84e7ec64e7a436c30d0a",
     "expected": {
       "command": "UnlockCommand",
       "commandType": 71,
@@ -291,8 +291,8 @@
       "commandType": 88,
       "responseCode": 1
     },
-    "bytesHex": "7f5a0503010001000158aa20995e8904a51d602366c987315bec56cb18ebe80fde8d7a97608d29bdb724371d35",
-    "wireHex": "7f5a0503010001000158aa20995e8904a51d602366c987315bec56cb18ebe80fde8d7a97608d29bdb724371d350d0a",
+    "bytesHex": "7f5a0503010001000154aa20995e8904a51d602366c987315bec56cb18ebe80fde8d7a97608d29bdb724371dd1",
+    "wireHex": "7f5a0503010001000154aa20995e8904a51d602366c987315bec56cb18ebe80fde8d7a97608d29bdb724371dd10d0a",
     "expected": {
       "command": "LockCommand",
       "commandType": 88,
@@ -331,8 +331,8 @@
       "commandType": 71,
       "responseCode": 0
     },
-    "bytesHex": "7f5a0503010001000147aa108f132ce6b297003c5f8ecca93f87d5d8fb",
-    "wireHex": "7f5a0503010001000147aa108f132ce6b297003c5f8ecca93f87d5d8fb0d0a",
+    "bytesHex": "7f5a0503010001000154aa108f132ce6b297003c5f8ecca93f87d5d8ac",
+    "wireHex": "7f5a0503010001000154aa108f132ce6b297003c5f8ecca93f87d5d8ac0d0a",
     "expected": {
       "command": "UnlockCommand",
       "commandType": 71,
@@ -367,8 +367,8 @@
       "commandType": 88,
       "responseCode": 0
     },
-    "bytesHex": "7f5a0503010001000158aa10155b3976ac938330a0895dd583d1e78d17",
-    "wireHex": "7f5a0503010001000158aa10155b3976ac938330a0895dd583d1e78d170d0a",
+    "bytesHex": "7f5a0503010001000154aa10155b3976ac938330a0895dd583d1e78dc6",
+    "wireHex": "7f5a0503010001000154aa10155b3976ac938330a0895dd583d1e78dc60d0a",
     "expected": {
       "command": "LockCommand",
       "commandType": 88,
@@ -403,8 +403,8 @@
       "commandType": 85,
       "responseCode": 0
     },
-    "bytesHex": "7f5a0503010001000155aa10ded5ec441b0b88207120571fa82d16422e",
-    "wireHex": "7f5a0503010001000155aa10ded5ec441b0b88207120571fa82d16422e0d0a",
+    "bytesHex": "7f5a0503010001000154aa10ded5ec441b0b88207120571fa82d1642f7",
+    "wireHex": "7f5a0503010001000154aa10ded5ec441b0b88207120571fa82d1642f70d0a",
     "expected": {
       "command": "CheckUserTimeCommand",
       "commandType": 85,

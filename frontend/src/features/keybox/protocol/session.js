@@ -18,6 +18,8 @@ export const CMD_CHECK_USER_TIME = 0x55
 export const CMD_UNLOCK = 0x47
 export const CMD_LOCK = 0x58
 export const RESPONSE_SUCCESS = 1
+/** Envelope command byte of every reply from the box. */
+export const COMM_RESPONSE = 0x54
 export const COMMAND_TIMEOUT_MS = 5000
 export const WRITE_CHUNK_SIZE = 20
 
@@ -70,10 +72,15 @@ async function exchange(transport, { command, data, aesKey, header, actuating = 
         if (!endsWithCrlf(buf)) return
         const frame = buf.slice(0, buf.length - 2)
         buf = new Uint8Array(0)
-        // Stray message for another command (e.g. SearchBicycleStatus): ignore.
-        if (frame.length > 9 && frame[9] !== command) return
+        // Replies carry COMM_RESPONSE (0x54) in the envelope and the answered command in plaintext[0].
+        // Anything else (e.g. SearchBicycleStatus) is a stray message: ignore it.
+        if (frame.length > 9 && frame[9] !== COMM_RESPONSE) return
         decodeResponse(frame, aesKey).then(
-          (r) => finish(resolve, r),
+          (r) => {
+            // A reply to another command: keep waiting for ours.
+            if (r.commandType !== command) return
+            finish(resolve, r)
+          },
           (e) => {
             // A reply that fails to decode proves the box received the complete command.
             if (actuating && e && typeof e === 'object') e.afterCommand = true

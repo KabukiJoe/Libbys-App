@@ -39,7 +39,9 @@ describe('decodeResponse', () => {
   it.each(responses.map((f) => [f.name, f]))('decodes %s', async (_n, f) => {
     const aesKey = unhex(f.lockData.privateData.aesKey)
     const r = await decodeResponse(unhex(f.bytesHex), aesKey)
-    expect(r.command).toBe(f.expected.commandType)
+    // Real boxes reply with envelope command COMM_RESPONSE (0x54); the answered command is plaintext[0].
+    expect(r.command).toBe(0x54)
+    expect(r.commandType).toBe(f.expected.commandType)
     expect(r.response).toBe(f.expected.response)
     expect(hex(r.data)).toBe(f.expected.dataHex)
     expect(hex(r.plaintext)).toBe(f.expected.plaintextHex)

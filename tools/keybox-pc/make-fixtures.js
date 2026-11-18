@@ -76,7 +76,9 @@ function response(name, description, commandType, responseCode, payload, decoded
     env.header,
     Buffer.from([env.protocol_type, env.sub_version, env.scene]),
     org,
-    Buffer.from([commandType, env.encrypt, enc.length]),
+    // Real boxes put COMM_RESPONSE (0x54) in the envelope; the answered command is the first plaintext byte.
+    // Observed on the PAIRIER box (2026-11-18): reply to CheckUserTime had envelope 0x54, plaintext[0] 0x55.
+    Buffer.from([CommandType.COMM_RESPONSE, env.encrypt, enc.length]),
     enc,
   ]);
   frame = Buffer.concat([frame, Buffer.from([CodecUtils.crccompute(frame)])]);
