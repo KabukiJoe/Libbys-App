@@ -66,6 +66,11 @@ function saveLockData(client, locks = []) {
  * Wake the box by touching its keypad right before / just after starting.
  */
 async function withPairedLock(action, { timeoutMs = 60000 } = {}) {
+  // This box sometimes sends a reply with a wrong checksum. By default the SDK then re-sends the command,
+  // and the box rejects the repeat ("Failed unlock response") although the first one already worked.
+  // Accept such replies instead (only for lock/unlock/keypad runs; pairing is unaffected). Override with
+  // TTLOCK_IGNORE_CRC=0 to get the SDK default back.
+  if (process.env.TTLOCK_IGNORE_CRC === undefined) process.env.TTLOCK_IGNORE_CRC = '1';
   const lockData = loadLockData();
   const client = new TTLockClient({ lockData });
   let handled = false;
