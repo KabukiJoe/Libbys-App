@@ -3,6 +3,7 @@ const cors = require('cors');
 const { requirePassword } = require('./auth');
 const { askKin } = require('./kindroid');
 const mantraRoutes = require('./mantra/routes');
+const keyboxRoutes = require('./keybox');
 
 // The native app's WebView origin (Capacitor, androidScheme https).
 // Must be an array: a plain string makes `cors` send the header to every origin.
@@ -42,6 +43,7 @@ function createApp() {
   });
 
   app.use('/api', mantraRoutes);
+  app.use('/api', keyboxRoutes);
 
   return app;
 }

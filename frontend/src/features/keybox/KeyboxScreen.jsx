@@ -1,9 +1,11 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import ActionButton from '../../components/ActionButton.jsx';
 import Header from '../../components/Header.jsx';
+import { backupKeyboxLockData } from '../../api.js';
 import { initialState, keyboxReducer } from './keyboxState.js';
 import { loadLockData, parseLockData, saveLockData } from './lockDataStore.js';
 import { describeError } from './errors.js';
+import { restoreFromServer } from './restoreFromServer.js';
 import { KeyboxError, messageFor, runCommand } from './runCommand.js';
 
 const STEP_TEXT = {
@@ -21,6 +23,8 @@ export default function KeyboxScreen({ onHome }) {
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
   const [replacing, setReplacing] = useState(false);
+  // Server backup of the lock data: { status: 'idle' | 'working' | 'ok' | 'error', message }
+  const [backup, setBackup] = useState({ status: 'idle', message: '' });
   const mounted = useRef(true);
   const running = useRef(false);
 
@@ -36,6 +40,16 @@ export default function KeyboxScreen({ onHome }) {
     };
   }, []);
 
+  async function handleBackup(lock, prefix = '') {
+    setBackup({ status: 'working', message: '' });
+    try {
+      await backupKeyboxLockData(lock);
+      if (mounted.current) setBackup({ status: 'ok', message: 'Backed up on the server.' });
+    } catch (err) {
+      if (mounted.current) setBackup({ status: 'error', message: `${prefix}Server backup failed: ${err.message}` });
+    }
+  }
+
   async function handleImport(e) {
     e.preventDefault();
     try {
@@ -47,8 +61,25 @@ export default function KeyboxScreen({ onHome }) {
       setImportText('');
       setReplacing(false);
       dispatch({ type: 'loaded', payload: lock });
+      handleBackup(lock, 'Saved on this phone. ');
     } catch (err) {
       if (mounted.current) setImportError(err.message);
+    }
+  }
+
+  async function handleRestore() {
+    setImportError('');
+    setBackup({ status: 'working', message: '' });
+    try {
+      const lock = await restoreFromServer();
+      if (!mounted.current) return;
+      setLockData(lock);
+      setBackup({ status: 'ok', message: 'Restored from the server.' });
+      dispatch({ type: 'loaded', payload: lock });
+    } catch (err) {
+      if (!mounted.current) return;
+      setBackup({ status: 'idle', message: '' });
+      setImportError(err.message);
     }
   }
 
@@ -106,6 +137,11 @@ export default function KeyboxScreen({ onHome }) {
               Cancel
             </ActionButton>
           )}
+          {state.phase === 'no-data' && (
+            <ActionButton type="button" disabled={backup.status === 'working'} onClick={handleRestore}>
+              Restore from server
+            </ActionButton>
+          )}
         </form>
       )}
 
@@ -138,6 +174,19 @@ export default function KeyboxScreen({ onHome }) {
             >
               Replace lock data
             </ActionButton>
+          )}
+          {!busy && !replacing && (
+            <ActionButton type="button" disabled={backup.status === 'working'} onClick={() => handleBackup(lockData)}>
+              Back up to server
+            </ActionButton>
+          )}
+          {backup.message && (
+            <p
+              className={`text-center text-sm ${backup.status === 'error' ? 'text-red-700 dark:text-red-300' : 'opacity-70'}`}
+              aria-live="polite"
+            >
+              {backup.message}
+            </p>
           )}
         </div>
       )}
