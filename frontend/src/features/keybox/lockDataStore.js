@@ -25,11 +25,6 @@ export function parseLockData(text) {
   return validate(Array.isArray(data) ? data[0] : data)
 }
 
-export async function saveLockData(lock) {
-  validate(lock)
-  await Preferences.set({ key: KEY, value: JSON.stringify(lock) })
-}
-
 export async function loadLockData() {
   try {
     const { value } = await Preferences.get({ key: KEY })
@@ -37,4 +32,9 @@ export async function loadLockData() {
   } catch {
     return null
   }
+}
+
+/** Removes the phone-held lock (after it was uploaded to the server). */
+export async function clearLockData() {
+  await Preferences.remove({ key: KEY })
 }

@@ -6,10 +6,11 @@ vi.mock('@capacitor/preferences', () => ({
   Preferences: {
     get: vi.fn(async ({ key }) => ({ value: store.has(key) ? store.get(key) : null })),
     set: vi.fn(async ({ key, value }) => { store.set(key, value) }),
+    remove: vi.fn(async ({ key }) => { store.delete(key) }),
   },
 }))
 
-import { parseLockData, loadLockData, saveLockData } from './lockDataStore.js'
+import { parseLockData, loadLockData, clearLockData } from './lockDataStore.js'
 
 const KEY = 'keybox.lockData'
 const BAD = 'Invalid lock data'
@@ -45,31 +46,22 @@ describe('parseLockData', () => {
   }
 })
 
-describe('save/load', () => {
-  it('round-trips an array and a single object', async () => {
-    await saveLockData(parseLockData(JSON.stringify([clone()])))
+describe('load/clear', () => {
+  it('loads a stored valid lock', async () => {
+    store.set(KEY, JSON.stringify(clone()))
     expect(await loadLockData()).toEqual(clone())
-    expect(typeof store.get(KEY)).toBe('string')
-    await saveLockData(parseLockData(JSON.stringify(clone())))
-    expect(await loadLockData()).toEqual(clone())
-  })
-  it('failed parse leaves stored value unchanged', async () => {
-    await saveLockData(clone())
-    const before = store.get(KEY)
-    expect(() => parseLockData('{bad')).toThrow(BAD)
-    expect(store.get(KEY)).toBe(before)
-  })
-  it('saveLockData rejects invalid objects without storing', async () => {
-    await saveLockData(clone())
-    const before = store.get(KEY)
-    await expect(saveLockData({ address: 'x' })).rejects.toThrow(BAD)
-    expect(store.get(KEY)).toBe(before)
   })
   it('load returns null when empty or corrupt/invalid', async () => {
     expect(await loadLockData()).toBeNull()
     store.set(KEY, '{corrupt')
     expect(await loadLockData()).toBeNull()
     store.set(KEY, JSON.stringify({ address: 'x' }))
+    expect(await loadLockData()).toBeNull()
+  })
+  it('clearLockData removes the stored lock', async () => {
+    store.set(KEY, JSON.stringify(clone()))
+    await clearLockData()
+    expect(store.has(KEY)).toBe(false)
     expect(await loadLockData()).toBeNull()
   })
 })

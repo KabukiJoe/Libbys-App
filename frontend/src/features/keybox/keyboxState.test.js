@@ -71,4 +71,10 @@ describe('keyboxReducer detail and replace', () => {
     const busy = { phase: 'busy', pending: 'open' }
     expect(keyboxReducer(busy, { type: 'loaded', payload: lock })).toBe(busy)
   })
+
+  it('cancel leaves busy for idle and ignores other phases', () => {
+    expect(keyboxReducer({ phase: 'busy', pending: 'open' }, { type: 'cancel' })).toEqual({ phase: 'idle' })
+    const done = { phase: 'done', lastAction: 'open' }
+    expect(keyboxReducer(done, { type: 'cancel' })).toBe(done)
+  })
 })

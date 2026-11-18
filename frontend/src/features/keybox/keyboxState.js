@@ -14,6 +14,8 @@ export function keyboxReducer(state, action) {
     case 'succeeded':
       if (state.phase !== 'busy') return state
       return { phase: 'done', lastAction: state.pending }
+    case 'cancel':
+      return state.phase === 'busy' ? { phase: 'idle' } : state
     case 'failed':
       return { phase: 'failed', message: action.payload, detail: action.detail, lastAction: undefined }
     default:
