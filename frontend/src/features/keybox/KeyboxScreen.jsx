@@ -45,7 +45,7 @@ export default function KeyboxScreen({ onHome }) {
   const mounted = useRef(true);
   const running = useRef(false);
 
-  // Asks the server for the lock and window state; failures show in the gate's error box.
+  // Asks the server for the lock and window state; a failure on first load shows a status error; later failures are ignored so the known lock and open window stay.
   const refreshStatus = useCallback(async () => {
     try {
       const status = await getKeyboxStatus();

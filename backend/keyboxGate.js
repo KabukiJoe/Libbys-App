@@ -27,6 +27,8 @@ function findApproval(reply, keyword) {
   re.lastIndex = 0;
   const text = reply
     .replace(re, '')
+    // Never let the keyword reach the client, even glued to other text ("BLUEBIRDS", "xBLUEBIRDx").
+    .replace(new RegExp(escapeRegExp(keyword), 'gi'), '')
     .replace(/\s+([,.!?])/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim();

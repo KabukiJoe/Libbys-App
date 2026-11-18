@@ -64,7 +64,8 @@ export function answerMantra(id, answer) {
   });
 }
 
-// Write-only backup of the keybox lock data on the server (see backend/keybox.js); there is no read route.
+// Backup of the keybox lock data on the server (see backend/keybox.js). It is only readable back through
+// /api/keybox/credentials, and only during a window Libby approved.
 export function backupKeyboxLockData(lockData) {
   return request('/api/keybox/lock-data', {
     method: 'POST',

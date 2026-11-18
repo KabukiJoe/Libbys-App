@@ -270,3 +270,11 @@ test('the message sent to Libby is the fixed text plus note', async () => {
   assert.deepStrictEqual(h.calls, [buildRequestMessage('bored')]);
   h.srv.close();
 });
+
+test('a denied reply containing the keyword inside a word does not return it', async () => {
+  const h = await gateSetup({ reply: 'No BLUEBIRDS today' });
+  const r = await h.call('/request', {});
+  assert.strictEqual(r.body.approved, false);
+  assert.ok(!r.body.reply.toLowerCase().includes('bluebird'));
+  h.srv.close();
+});
