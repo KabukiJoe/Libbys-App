@@ -85,3 +85,16 @@ Array of `{ name, kind, description, lockData, input, bytesHex, wireHex, ... }` 
 synthetic lock data (fake AES key `00112233...eeff`, fake admin keys, fixed time). Covers a plain command, AES
 commands (check-user-time, check-admin, check-random, unlock, lock), decoded responses (`expected: { command, dataHex, ... }`)
 and non-success responses. `bytesHex` is the envelope; `wireHex` is what goes on the wire (envelope + `0d0a`).
+
+## Acceptance results (2026-11-18, PAIRIER box, Android phone, PC Bluetooth off)
+
+- Pairing from the PC worked on about the 6th attempt (flaky Windows BLE link; see step 3).
+- Keypad neutralised with `neutralise-keypad.js`; the old admin PIN no longer opens the box (checked on the keypad).
+- Official TTLock app check (step 5): skipped by the user; not verified.
+- App: Open worked in the 20-cycle run (reported by the user: all successful). The Close command is refused by the
+  box (reply code 0, payload 01) once it has re-locked itself; the box auto-locks about 3 s after unlocking and
+  re-latches when the lid is closed, so Close has no practical use.
+- Power: after removing the batteries, powering the box over the USB-C emergency port still worked.
+- Box quirks found on the real device (all handled): replies use envelope byte 0x54 with the answered command in the
+  first plaintext byte; the unlock reply carries a wrong CRC byte although it is intact; `check random` and
+  `check admin` replies also have wrong CRC bytes; reading the auto-lock time fails during pairing but works later.
