@@ -5,7 +5,6 @@ import { backupKeyboxLockData } from '../../api.js';
 import { initialState, keyboxReducer } from './keyboxState.js';
 import { loadLockData, parseLockData, saveLockData } from './lockDataStore.js';
 import { describeError } from './errors.js';
-import { restoreFromServer } from './restoreFromServer.js';
 import { KeyboxError, messageFor, runCommand } from './runCommand.js';
 
 const STEP_TEXT = {
@@ -67,22 +66,6 @@ export default function KeyboxScreen({ onHome }) {
     }
   }
 
-  async function handleRestore() {
-    setImportError('');
-    setBackup({ status: 'working', message: '' });
-    try {
-      const lock = await restoreFromServer();
-      if (!mounted.current) return;
-      setLockData(lock);
-      setBackup({ status: 'ok', message: 'Restored from the server.' });
-      dispatch({ type: 'loaded', payload: lock });
-    } catch (err) {
-      if (!mounted.current) return;
-      setBackup({ status: 'idle', message: '' });
-      setImportError(err.message);
-    }
-  }
-
   async function handleCommand(kind) {
     if (running.current || !lockData) return;
     running.current = true;
@@ -135,11 +118,6 @@ export default function KeyboxScreen({ onHome }) {
               }}
             >
               Cancel
-            </ActionButton>
-          )}
-          {state.phase === 'no-data' && (
-            <ActionButton type="button" disabled={backup.status === 'working'} onClick={handleRestore}>
-              Restore from server
             </ActionButton>
           )}
         </form>

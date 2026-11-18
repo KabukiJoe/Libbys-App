@@ -1,9 +1,10 @@
 const express = require('express');
 const store = require('./store');
 
-// Backup of the keybox's lock data (the PC tool's lockData.json entry), so losing the phone does not lose
-// the box. The same shape the app validates in frontend/src/features/keybox/lockDataStore.js.
-// NOTE: anyone with the app password can read it back; the Libby gate (step 2) is meant to wrap GET.
+// Write-only backup of the keybox's lock data (the PC tool's lockData.json entry), so losing the phone does
+// not lose the box. The same shape the app validates in frontend/src/features/keybox/lockDataStore.js.
+// There is deliberately NO read route: getting the lock back means reading data.json on the server volume
+// (key `keybox.lockData`) by hand, so the app password alone never yields the keys.
 
 const isObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -17,12 +18,6 @@ function isValidLock(lock) {
 }
 
 const router = express.Router();
-
-router.get('/keybox/lock-data', (req, res) => {
-  const lockData = store.load().keybox?.lockData;
-  if (!lockData) return res.status(404).json({ error: 'No lock data backed up on the server' });
-  res.json({ lockData });
-});
 
 router.post('/keybox/lock-data', (req, res) => {
   const { lockData } = req.body || {};

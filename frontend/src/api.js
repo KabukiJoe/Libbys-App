@@ -60,16 +60,12 @@ export function answerMantra(id, answer) {
   });
 }
 
-// Backup of the keybox lock data on the server (see backend/keybox.js).
+// Write-only backup of the keybox lock data on the server (see backend/keybox.js); there is no read route.
 export function backupKeyboxLockData(lockData) {
   return request('/api/keybox/lock-data', {
     method: 'POST',
     body: JSON.stringify({ lockData }),
   });
-}
-
-export function fetchKeyboxLockData() {
-  return request('/api/keybox/lock-data');
 }
 
 export function subscribePush(token) {

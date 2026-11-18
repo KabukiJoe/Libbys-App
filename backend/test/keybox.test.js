@@ -31,10 +31,25 @@ test.after(() => {
 
 const post = (body) => fetch(`${base}/api/keybox/lock-data`, { method: 'POST', headers: auth, body: JSON.stringify(body) });
 const get = () => fetch(`${base}/api/keybox/lock-data`, { headers: auth });
+// The server never returns the lock; the only way to read it is the data file on the volume.
+const stored = () => {
+  const file = path.join(dir, 'data.json');
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')).keybox?.lockData : undefined;
+};
 
-test('GET is 404 before anything is backed up', async () => {
-  const res = await get();
-  assert.strictEqual(res.status, 404);
+test('there is no way to read the lock back over the API', async () => {
+  assert.strictEqual((await get()).status, 404); // before a backup
+  assert.strictEqual((await post({ lockData: lock() })).status, 200);
+  assert.strictEqual((await get()).status, 404); // and after
+  for (const p of ['/api/keybox', '/api/keybox/lock-data/', '/api/keybox/lockdata']) {
+    const res = await fetch(`${base}${p}`, { headers: auth });
+    assert.strictEqual(res.status, 404, p);
+  }
+});
+
+test('the POST response does not echo the lock', async () => {
+  const res = await post({ lockData: lock() });
+  assert.deepStrictEqual(await res.json(), { ok: true });
 });
 
 test('requires the app password', async () => {
@@ -48,28 +63,21 @@ test('requires the app password', async () => {
   assert.strictEqual(noAuthPost.status, 401);
 });
 
-test('POST stores the lock and GET returns exactly it', async () => {
+test('POST stores exactly the lock in the data file (survives a restart)', async () => {
   const res = await post({ lockData: lock() });
   assert.strictEqual(res.status, 200);
-  const got = await get();
-  assert.strictEqual(got.status, 200);
-  assert.deepStrictEqual(await got.json(), { lockData: lock() });
-});
-
-test('the lock survives a server restart (written to the data file)', async () => {
-  const saved = JSON.parse(fs.readFileSync(path.join(dir, 'data.json'), 'utf8'));
-  assert.deepStrictEqual(saved.keybox.lockData, lock());
+  assert.deepStrictEqual(stored(), lock());
 });
 
 test('POST overwrites the previous backup', async () => {
   const next = lock();
   next.address = '11:22:33:44:55:66';
   assert.strictEqual((await post({ lockData: next })).status, 200);
-  assert.deepStrictEqual(await (await get()).json(), { lockData: next });
+  assert.deepStrictEqual(stored(), next);
 });
 
 test('POST rejects invalid lock data and keeps the previous backup', async () => {
-  const before = await (await get()).json();
+  const before = stored();
   const cases = [
     {},
     { lockData: null },
@@ -86,7 +94,7 @@ test('POST rejects invalid lock data and keeps the previous backup', async () =>
     const res = await post(body);
     assert.strictEqual(res.status, 400, JSON.stringify(body));
   }
-  assert.deepStrictEqual(await (await get()).json(), before);
+  assert.deepStrictEqual(stored(), before);
 });
 
 test('error responses never echo the key material', async () => {
