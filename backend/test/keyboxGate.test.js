@@ -41,7 +41,7 @@ test('NOTE_MAX is 500', () => {
   assert.strictEqual(NOTE_MAX, 500);
 });
 test('denied replies never leak the keyword, even inside other words', () => {
-  for (const reply of ['No BLUEBIRDS today', 'xBLUEBIRDx', 'BLUEBIRD-ish']) {
+  for (const reply of ['No BLUEBIRDS today', 'xBLUEBIRDx', 'BLUEBIRD-ish', 'BLUEBLUEBIRDBIRD', 'BLUEBLUEBLUEBIRDBIRDBIRD']) {
     const r = findApproval(reply, 'BLUEBIRD');
     assert.strictEqual(r.approved, false, reply);
     assert.ok(!r.text.toLowerCase().includes('bluebird'), reply);

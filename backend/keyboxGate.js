@@ -25,13 +25,20 @@ function findApproval(reply, keyword) {
   const re = new RegExp(`(?<![A-Za-z0-9_-])${escapeRegExp(keyword)}(?![A-Za-z0-9_-])`, 'gi');
   const approved = re.test(reply);
   re.lastIndex = 0;
-  const text = reply
-    .replace(re, '')
-    // Never let the keyword reach the client, even glued to other text ("BLUEBIRDS", "xBLUEBIRDx").
-    .replace(new RegExp(escapeRegExp(keyword), 'gi'), '')
+  let text = reply.replace(re, '');
+  // Never let the keyword reach the client, even glued to other text ("BLUEBIRDS", "xBLUEBIRDx"). Repeat
+  // until stable so nested forms ("BLUEBLUEBIRDBIRD") cannot reassemble it after a strip.
+  const any = new RegExp(escapeRegExp(keyword), 'gi');
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(any, '');
+  } while (text !== prev);
+  text = text
     .replace(/\s+([,.!?])/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim();
+  if (text.toLowerCase().includes(keyword.toLowerCase())) text = '';
   return { approved, text };
 }
 

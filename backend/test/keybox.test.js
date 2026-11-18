@@ -278,3 +278,11 @@ test('a denied reply containing the keyword inside a word does not return it', a
   assert.ok(!r.body.reply.toLowerCase().includes('bluebird'));
   h.srv.close();
 });
+
+test('a denied reply with a nested keyword does not reassemble it', async () => {
+  const h = await gateSetup({ reply: 'BLUEBLUEBIRDBIRD' });
+  const r = await h.call('/request', {});
+  assert.strictEqual(r.body.approved, false);
+  assert.ok(!r.body.reply.toLowerCase().includes('bluebird'));
+  h.srv.close();
+});
