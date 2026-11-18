@@ -33,6 +33,9 @@ export default function KeyboxScreen({ onHome }) {
   const [state, dispatch] = useReducer(keyboxReducer, initialState);
   const [gate, gateDispatch] = useReducer(gateReducer, initialGate);
   const [hasLock, setHasLock] = useState(false);
+  // Set only while the lock state is still unknown (first status fetch failed).
+  const [statusError, setStatusError] = useState('');
+  const knownLock = useRef(null);
   const [note, setNote] = useState('');
   const [now, setNow] = useState(() => Date.now());
   const [importText, setImportText] = useState('');
@@ -47,15 +50,19 @@ export default function KeyboxScreen({ onHome }) {
     try {
       const status = await getKeyboxStatus();
       if (!mounted.current) return;
-      setHasLock(Boolean(status.hasLock));
-      dispatch({ type: 'loaded', payload: Boolean(status.hasLock) });
+      const has = Boolean(status.hasLock);
+      setStatusError('');
+      setHasLock(has);
+      // Only on first load or a real change, so a refetch does not clear the 'Box opened' message.
+      if (knownLock.current !== has) dispatch({ type: 'loaded', payload: has });
+      knownLock.current = has;
       const at = Date.now();
       setNow(at);
       gateDispatch({ type: 'status', payload: { grant: status.grant }, now: at });
     } catch (err) {
       if (!mounted.current) return;
-      dispatch({ type: 'loaded', payload: false });
-      gateDispatch({ type: 'failed', payload: err.message });
+      // Never pretend there is no lock, and never drop an open window, on a failed fetch.
+      if (knownLock.current === null) setStatusError(err.message);
     }
   }, []);
 
@@ -171,11 +178,27 @@ export default function KeyboxScreen({ onHome }) {
   const loading = state.phase === 'loading';
   const approved = gate.phase === 'approved';
   const asking = gate.phase === 'asking';
+  const statusUnknown = loading && Boolean(statusError);
   const showImport = !loading && (!hasLock || (replacing && !busy));
 
   return (
     <>
       <Header title="Keybox" onBack={busy ? undefined : onHome} />
+
+      {statusUnknown && (
+        <div className="flex animate-fade-up flex-col gap-3">
+          <p className={ERROR_BOX}>{statusError}</p>
+          <ActionButton
+            type="button"
+            onClick={() => {
+              setStatusError('');
+              refreshStatus();
+            }}
+          >
+            Retry
+          </ActionButton>
+        </div>
+      )}
 
       {showImport && (
         <form onSubmit={handleImport} className="flex animate-fade-up flex-col gap-3">
