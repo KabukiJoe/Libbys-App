@@ -3,6 +3,7 @@ import { getStoredPassword, storePassword, UnauthorizedError } from './api.js';
 import MantraBanner from './features/mantra/MantraBanner.jsx';
 import MantraScreen from './features/mantra/MantraScreen.jsx';
 import { initPush, syncPush } from './features/mantra/push.js';
+import KeyboxScreen from './features/keybox/KeyboxScreen.jsx';
 import PermissionScreen from './features/permission/PermissionScreen.jsx';
 import HomeScreen from './screens/HomeScreen.jsx';
 import PasswordScreen from './screens/PasswordScreen.jsx';
@@ -10,7 +11,7 @@ import Header from './components/Header.jsx';
 
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => Boolean(getStoredPassword()));
-  // 'home' | 'permission' | 'mantra'
+  // 'home' | 'permission' | 'mantra' | 'keybox'
   const [screen, setScreen] = useState('home');
   const [banner, setBanner] = useState(false); // a mantra arrived while the app was open
 
@@ -62,6 +63,8 @@ export default function App() {
       {unlocked && screen === 'permission' && (
         <PermissionScreen onHome={goHome} onLocked={() => setUnlocked(false)} />
       )}
+
+      {unlocked && screen === 'keybox' && <KeyboxScreen onHome={goHome} />}
 
       {unlocked && screen === 'mantra' && (
         <MantraScreen onHome={goHome} onLocked={() => setUnlocked(false)} />

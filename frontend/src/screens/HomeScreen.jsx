@@ -4,6 +4,7 @@ import Header from '../components/Header.jsx';
 const FEATURES = [
   { id: 'permission', title: 'Permission', emoji: '🙋', ready: true },
   { id: 'mantra', title: 'Mantra', emoji: '🧘', ready: true },
+  { id: 'keybox', title: 'Keybox', emoji: '🔐', ready: true },
 ];
 
 export default function HomeScreen({ onOpen }) {
