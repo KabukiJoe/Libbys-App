@@ -22,6 +22,10 @@ test('getKeyword rejects missing, short or odd keywords', () => {
   assert.strictEqual(getKeyword({ KEYBOX_UNLOCK_KEYWORD: 'abc' }), null);
   assert.strictEqual(getKeyword({ KEYBOX_UNLOCK_KEYWORD: 'two words' }), null);
   assert.strictEqual(getKeyword({ KEYBOX_UNLOCK_KEYWORD: 'Blue_bird-7' }), 'Blue_bird-7');
+  assert.strictEqual(getKeyword({ KEYBOX_UNLOCK_KEYWORD: 'abcde' }), null);
+  assert.strictEqual(getKeyword({ KEYBOX_UNLOCK_KEYWORD: 'abcdef' }), 'abcdef');
+  const long = 'a'.repeat(70);
+  assert.strictEqual(getKeyword({ KEYBOX_UNLOCK_KEYWORD: long }), long);
 });
 test('grantWindowMs defaults to 120 s and clamps to 60..180 s', () => {
   assert.strictEqual(grantWindowMs({}), 120_000);

@@ -2,9 +2,7 @@
 // returned to callers except through getKeyword, and never written anywhere by this module.
 
 const NOTE_MAX = 500;
-const KEYWORD_MIN = 4;
-const KEYWORD_MAX = 64;
-const KEYWORD_RE = /^[A-Za-z0-9_-]+$/;
+const KEYWORD_RE = /^[A-Za-z0-9_-]{6,}$/;
 const DEFAULT_GRANT_MS = 120_000;
 const MIN_GRANT_MS = 60_000;
 const MAX_GRANT_MS = 180_000;
@@ -14,7 +12,7 @@ function getKeyword(env = process.env) {
   const raw = env.KEYBOX_UNLOCK_KEYWORD;
   if (typeof raw !== 'string') return null;
   const kw = raw.trim();
-  if (kw.length < KEYWORD_MIN || kw.length > KEYWORD_MAX || !KEYWORD_RE.test(kw)) return null;
+  if (!KEYWORD_RE.test(kw)) return null;
   return kw;
 }
 
