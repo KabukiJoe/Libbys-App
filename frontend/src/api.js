@@ -34,7 +34,11 @@ async function request(path, { password = getStoredPassword(), ...options } = {}
 
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) throw new UnauthorizedError(data.error || 'Wrong password');
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -66,6 +70,27 @@ export function backupKeyboxLockData(lockData) {
     method: 'POST',
     body: JSON.stringify({ lockData }),
   });
+}
+
+export function getKeyboxStatus() {
+  return request('/api/keybox/status');
+}
+
+export function requestKeyboxOpen(note) {
+  const trimmed = typeof note === 'string' ? note.trim() : '';
+  return request('/api/keybox/request', {
+    method: 'POST',
+    body: JSON.stringify(trimmed ? { note: trimmed } : {}),
+  });
+}
+
+// Only succeeds while the Libby-approved window is open; the lock data is used once and never stored.
+export function fetchKeyboxCredentials() {
+  return request('/api/keybox/credentials', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function endKeyboxGrant() {
+  return request('/api/keybox/grant/end', { method: 'POST', body: JSON.stringify({}) });
 }
 
 export function subscribePush(token) {
