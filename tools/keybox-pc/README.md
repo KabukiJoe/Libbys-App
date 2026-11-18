@@ -60,14 +60,17 @@ For such a lock `lockData.json` gets a `header` entry (`protocolType`, `subVersi
 
 1. **Check the adapter.** `node pair.js --scan-only`, touching the keypad. Expected: the box appears in the list.
    If noble cannot use the Intel adapter (error, or "Bluetooth adapter not ready"), stop and report back.
-2. **Box test, with the box open and empty.** Find the reset button (reported to be on the back of the outside part,
-   under the metal cover; the reset behaviour, a short press rebooting and a 2-3 s hold resetting to factory with beeps,
-   is unverified, check the box's own manual). Note whether it can be reached with the lid closed, and write the answer here:
+2. **Box test, with the box open and empty.** Look for a reset button and note whether it can be reached with the lid closed.
 
-   - Reset button reachable with lid closed: _TODO (yes / no)_
+   - Result (2026-11-18, PAIRIER box): **no reset button found**, inside or outside. A new box ships uninitialised
+     (`initialized=false`), so no reset is needed before the first pairing. Remaining reset routes are the keypad
+     (with the admin PIN, see step 6) and the SDK with the keys in `lockData.json`; neither is verified for this model.
 
-3. **Reset and pair.** Factory-reset the box, then `node pair.js`. Expected: `lockData.json` is written.
-   Pairing sometimes fails; just repeat (reset again if the box no longer shows as uninitialised).
+3. **Pair.** Run `node pair.js` while the scan shows `initialized=false`. Expected: `lockData.json` is written.
+   Pairing over the PC's built-in adapter is flaky (observed: hangs while reading characteristics, disconnects
+   during `init`, a corrupted reply during `AddAdmin`). A failed attempt leaves the box uninitialised, so just
+   repeat: box right next to the PC, other Bluetooth devices disconnected, tap the keypad once when
+   `connecting...` appears. This box rejects reading the auto-lock time during init; `pair.js` tolerates that.
 4. **Cycle test.** Run `node unlock.js`, then `node lock.js`, five times each. Expected: the box opens and closes
    every time.
 5. **Official-app check (manual).** Try to add the box in the TTLock app with a throwaway account. Expected: it

@@ -5,6 +5,21 @@
 // Wake the box by touching its keypad ~5s BEFORE the scan starts (it stays awake 10-15s).
 const { TTLockClient, saveLockData, describeLockType } = require('./common');
 
+// This box rejects the SDK's optional "read auto-lock time" query during init, which aborts the whole
+// pairing (observed on the PAIRIER box: "Failed to set/get autoLockTime"). The value is only informational
+// for lockData, so tolerate a failed READ. Writes (newValue given) still fail loudly.
+const { TTLock } = require('ttlock-sdk-js/dist/device/TTLock');
+const origSearchAutoLock = TTLock.prototype.searchAutoLockTimeCommand;
+TTLock.prototype.searchAutoLockTimeCommand = async function (newValue, aesKey) {
+  try {
+    return await origSearchAutoLock.call(this, newValue, aesKey);
+  } catch (err) {
+    if (typeof newValue !== 'undefined') throw err;
+    console.warn(`autoLockTime read failed (${err.message}); continuing without it.`);
+    return undefined;
+  }
+};
+
 const scanOnly = process.argv.includes('--scan-only');
 const client = new TTLockClient({});
 const seen = new Set();
