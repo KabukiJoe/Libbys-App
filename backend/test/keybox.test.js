@@ -115,6 +115,7 @@ async function gateHarness({ reply = 'Sure, BLUEBIRD.', env = ENV, fail } = {}) 
   const h = { clock: 1_000_000, calls: [], reply, fail };
   const askKin = async ({ message }) => {
     h.calls.push(message);
+    if (h.hold) await h.hold;
     if (h.fail) throw h.fail;
     return h.reply;
   };
@@ -354,11 +355,27 @@ test('an approval starts no cooldown and clears an expired-or-stale one', async 
   h.srv.close();
 });
 
-test('validation and gate errors do not start or consult a cooldown', async () => {
+test('a 400 while a cooldown is active stays 400 and does not extend it', async () => {
   const h = await gateSetup({ reply: 'No.' });
   await h.call('/request', {});
-  const bad = await h.call('/request', { note: 5 });
-  assert.strictEqual(bad.status, 400);
+  const until = store.load().keybox.cooldownUntil;
+  h.clock += 1000;
+  assert.strictEqual((await h.call('/request', { note: 5 })).status, 400);
+  assert.strictEqual(store.load().keybox.cooldownUntil, until);
+  assert.strictEqual(h.calls.length, 1);
+  h.srv.close();
+});
+
+test('503 unconfigured stays 503 while a cooldown is active and leaves it alone', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  await h.call('/request', {});
+  const until = store.load().keybox.cooldownUntil;
+  const h2 = await gateHarness({ env: {} });
+  h2.clock = h.clock;
+  const r = await h2.call('/request', {});
+  assert.strictEqual(r.status, 503);
+  assert.strictEqual(store.load().keybox.cooldownUntil, until);
+  h2.srv.close();
   h.srv.close();
 });
 
@@ -393,5 +410,39 @@ test('the cooldown survives a restart and keeps lock data', async () => {
   assert.ok(fs.readFileSync(path.join(dir, 'data.json'), 'utf8').includes('cooldownUntil'));
   assert.deepStrictEqual(store.load().keybox.lockData, lock());
   srv2.close();
+  h.srv.close();
+});
+
+// ---- single-flight guard ----
+const tick = () => new Promise((r) => setTimeout(r, 30));
+
+test('concurrent requests: only one reaches Libby, the other gets 409, then 429 after the denial', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  let release;
+  h.hold = new Promise((r) => (release = r));
+  const first = h.call('/request', {});
+  await tick();
+  const second = await h.call('/request', {});
+  assert.strictEqual(second.status, 409);
+  assert.deepStrictEqual(second.body, { error: 'A request is already in progress' });
+  release();
+  const r1 = await first;
+  assert.strictEqual(r1.body.approved, false);
+  assert.strictEqual(h.calls.length, 1);
+  h.hold = null;
+  const third = await h.call('/request', {});
+  assert.strictEqual(third.status, 429);
+  assert.strictEqual(h.calls.length, 1);
+  h.srv.close();
+});
+
+test('the in-flight flag is released after a 502', async () => {
+  const h = await gateSetup({ fail: new Error('boom') });
+  assert.strictEqual((await h.call('/request', {})).status, 502);
+  h.fail = null;
+  h.reply = 'Sure, BLUEBIRD.';
+  const r = await h.call('/request', {});
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(h.calls.length, 2);
   h.srv.close();
 });
