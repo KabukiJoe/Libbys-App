@@ -66,6 +66,11 @@ async function askKin({ groupId, message }) {
   return fetchKinReply({ apiKey, groupId, aiId, message, sentAt });
 }
 
+async function sendKinMessage({ message }) {
+  const { apiKey, aiId } = getConfig();
+  return request('POST', '/send-message', apiKey, { ai_id: aiId, message });
+}
+
 // Reads the group's recent history and returns the kin's reply to our message.
 async function fetchKinReply({ apiKey, groupId, aiId, message, sentAt }) {
   const query = new URLSearchParams({
@@ -132,4 +137,4 @@ function extractReply(body) {
   }
 }
 
-module.exports = { askKin };
+module.exports = { askKin, sendKinMessage };

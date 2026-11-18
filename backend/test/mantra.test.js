@@ -3,10 +3,31 @@ const assert = require('node:assert');
 const { DateTime } = require('luxon');
 const config = require('../mantra/config');
 const { planDay, planSlots, localDay } = require('../mantra/plan');
+const { ensureStats, recordResult, publicStats } = require('../mantra/stats');
 const { isCorrect } = require('../mantra');
 
 const berlin = (iso) => DateTime.fromISO(iso, { zone: 'Europe/Berlin' }).toMillis();
 const hour = (ms) => DateTime.fromMillis(ms, { zone: 'Europe/Berlin' }).toFormat('HH:mm');
+
+test('daily stats reset at local midnight while weekly stats reset on Monday', () => {
+  const data = {};
+  const monday = berlin('2026-06-15T12:00');
+  const stats = ensureStats(data, monday, config.timezone);
+  recordResult(stats, true);
+  recordResult(stats, false);
+
+  const tuesday = ensureStats(data, berlin('2026-06-16T00:01'), config.timezone);
+  assert.deepStrictEqual(publicStats(tuesday), {
+    daily: { success: 0, failed: 0 },
+    weekly: { success: 1, failed: 1 },
+  });
+
+  const followingMonday = ensureStats(data, berlin('2026-06-22T00:00'), config.timezone);
+  assert.deepStrictEqual(publicStats(followingMonday), {
+    daily: { success: 0, failed: 0 },
+    weekly: { success: 0, failed: 0 },
+  });
+});
 
 // Days around both DST switches plus a normal one.
 const DAYS = ['2026-03-29', '2026-06-15', '2026-10-25'];

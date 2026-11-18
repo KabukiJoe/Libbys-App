@@ -1,7 +1,9 @@
 const store = require('../store');
-const { askKin } = require('../kindroid');
+const { askKin, sendKinMessage } = require('../kindroid');
 const config = require('./config');
 const { planDay, localDay, formatLocal } = require('./plan');
+const { ensureStats, recordResult, publicStats } = require('./stats');
+const { getReadySummaries } = require('./summary');
 const push = require('./push');
 
 const TICK_MS = 30_000;
@@ -9,6 +11,7 @@ const TICK_MS = 30_000;
 const MAX_LATE_MS = 15 * 60 * 1000;
 
 let firing = false;
+const sendingSummaries = new Set();
 
 // Makes characters that are hard to type on a phone keyboard compare equal to their plain versions.
 // Case, letters and punctuation stay strict.
@@ -45,11 +48,12 @@ function planIfDue(now) {
 
 function expireOpen(now) {
   store.update((data) => {
+    const stats = ensureStats(data, now, config.timezone);
     for (const mantra of data.mantras) {
       if (mantra.status === 'open' && mantra.deadline < now) {
         mantra.status = 'failed';
         mantra.reason = 'timeout';
-        data.stats.failed++;
+        recordResult(stats, false);
       }
     }
   });
@@ -104,6 +108,37 @@ async function fireDueSlot(now) {
   }
 }
 
+async function sendReadySummaries(now) {
+  const data = store.load();
+  const ready = getReadySummaries({
+    schedule: data.schedule,
+    mantras: data.mantras,
+    stats: data.stats,
+    summarySent: data.summarySent,
+    now,
+    timezone: config.timezone,
+  });
+
+  for (const summary of ready) {
+    const lock = `${summary.type}:${summary.key}`;
+    if (sendingSummaries.has(lock)) continue;
+    sendingSummaries.add(lock);
+    try {
+      await sendKinMessage({ message: summary.message });
+      store.update((current) => {
+        if (summary.type === 'daily') current.summarySent.dailyDate = summary.key;
+        else current.summarySent.weeklyWeekStart = summary.key;
+      });
+      console.log(`Sent ${summary.type} mantra summary for ${summary.key}`);
+    } catch (err) {
+      console.error(`Could not send ${summary.type} mantra summary for ${summary.key}:`, err.message);
+      break;
+    } finally {
+      sendingSummaries.delete(lock);
+    }
+  }
+}
+
 async function tick() {
   if (firing) return;
   firing = true;
@@ -112,6 +147,7 @@ async function tick() {
     planIfDue(now);
     expireOpen(now);
     await fireDueSlot(now);
+    await sendReadySummaries(now);
   } catch (err) {
     console.error('Mantra scheduler error:', err);
   } finally {
@@ -138,7 +174,7 @@ function getStatus() {
   return {
     now,
     open: open ? { id: open.id, text: open.text, deadline: open.deadline } : null,
-    stats: data.stats,
+    stats: publicStats(data.stats),
   };
 }
 
@@ -150,15 +186,16 @@ function answerMantra(id, answer) {
     if (!mantra) return null;
     if (mantra.status !== 'open') return { error: 'Already answered or expired', status: mantra.status };
 
+    const stats = ensureStats(data, now, config.timezone);
     const inTime = now <= mantra.deadline;
     const success = inTime && isCorrect(answer, mantra.text);
     mantra.status = success ? 'success' : 'failed';
     mantra.answer = answer;
     mantra.answeredAt = now;
     if (!success) mantra.reason = inTime ? 'typo' : 'timeout';
-    data.stats[success ? 'success' : 'failed']++;
+    recordResult(stats, success);
 
-    return { result: mantra.status, reason: mantra.reason, expected: mantra.text, stats: data.stats };
+    return { result: mantra.status, reason: mantra.reason, expected: mantra.text, stats: publicStats(stats) };
   });
 }
 

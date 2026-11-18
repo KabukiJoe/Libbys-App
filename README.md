@@ -154,8 +154,13 @@ to the mantra group, takes the kin's reply as the mantra and sends a push notifi
 be typed exactly (case-sensitive, outer whitespace ignored) within 5 minutes, one attempt; a typo or
 timeout counts as failed. If the server was down, slots more than 15 minutes late are skipped.
 
-- `GET /api/mantra` → open mantra (if any) and counters. Nothing about upcoming mantras: when and how
-  many stays secret (also in the logs, unless `MANTRA_LOG_SCHEDULE=true`).
+- After all of the day's scheduled slots are settled and no mantra is open, the server sends a daily
+  success/failure summary directly to `KINDROID_AI_ID`. On Sundays, it sends the weekly summary after
+  the daily summary. The messages contain counts only.
+- `GET /api/mantra` → open mantra (if any), today's counters, and this week's counters. Daily counters
+  reset at midnight and weekly counters reset on Monday, using `MANTRA_TIMEZONE`. Nothing about
+  upcoming mantras: when and how many stays secret (also in the logs, unless
+  `MANTRA_LOG_SCHEDULE=true`).
 - `POST /api/mantra/:id/answer` `{ "answer": "..." }` → `{ result, reason, expected, stats }`
 - `POST /api/mantra/trigger` → requests a mantra immediately (for testing)
 - `POST /api/push/subscribe` `{ "token": "<FCM token>" }` registers the device

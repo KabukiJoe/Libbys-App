@@ -9,6 +9,7 @@ const EMPTY = () => ({
   schedule: { date: null, slots: [] },
   mantras: [],
   stats: { success: 0, failed: 0 },
+  summarySent: { dailyDate: null, weeklyWeekStart: null },
   pushTokens: [],
 });
 

@@ -175,9 +175,9 @@ export default function MantraScreen({ onHome, onLocked }) {
         {loadError && <p className="text-center text-sm text-red-600 dark:text-red-400">Failed: {loadError}</p>}
 
         {status && (
-          <div className="grid grid-cols-2 gap-3">
-            <Stat label="Successful" value={status.stats.success} emoji="✅" />
-            <Stat label="Failed" value={status.stats.failed} emoji="❌" />
+          <div className="grid gap-3">
+            <StatGroup label="Today" stats={status.stats.daily} />
+            <StatGroup label="This week" stats={status.stats.weekly} />
           </div>
         )}
 
@@ -232,13 +232,20 @@ function Result({ result }) {
   );
 }
 
-function Stat({ label, value, emoji }) {
+function StatGroup({ label, stats }) {
   return (
     <div className={`${card} text-center`}>
-      <p className="text-3xl font-bold tabular-nums">{value}</p>
-      <p className="text-sm opacity-70">
-        {emoji} {label}
-      </p>
+      <p className="mb-2 text-sm font-semibold opacity-70">{label}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-3xl font-bold tabular-nums">{stats.success}</p>
+          <p className="text-sm opacity-70">✅ Successful</p>
+        </div>
+        <div>
+          <p className="text-3xl font-bold tabular-nums">{stats.failed}</p>
+          <p className="text-sm opacity-70">❌ Failed</p>
+        </div>
+      </div>
     </div>
   );
 }
