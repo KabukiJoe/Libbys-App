@@ -37,6 +37,7 @@ async function request(path, { password = getStoredPassword(), ...options } = {}
   if (!res.ok) {
     const err = new Error(data.error || `HTTP ${res.status}`);
     err.status = res.status;
+    if (typeof data.retryInMs === 'number') err.retryInMs = data.retryInMs;
     throw err;
   }
   return data;

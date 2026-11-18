@@ -6,6 +6,8 @@ const KEYWORD_RE = /^[A-Za-z0-9_-]{6,}$/;
 const DEFAULT_GRANT_MS = 120_000;
 const MIN_GRANT_MS = 60_000;
 const MAX_GRANT_MS = 180_000;
+// After a denied answer the user must wait this long before asking again (server-enforced).
+const COOLDOWN_MS = 300_000;
 const REQUEST_TEXT = "[Keybox request] I'm asking you to open my keybox now.";
 
 function getKeyword(env = process.env) {
@@ -55,4 +57,4 @@ function buildRequestMessage(note) {
   return reason ? `${REQUEST_TEXT}\n\nMy reason: ${reason}` : REQUEST_TEXT;
 }
 
-module.exports = { getKeyword, findApproval, grantWindowMs, buildRequestMessage, NOTE_MAX };
+module.exports = { getKeyword, findApproval, grantWindowMs, buildRequestMessage, NOTE_MAX, COOLDOWN_MS };

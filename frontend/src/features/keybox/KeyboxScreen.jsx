@@ -9,7 +9,13 @@ import {
   requestKeyboxOpen,
 } from '../../api.js';
 import { initialState, keyboxReducer } from './keyboxState.js';
-import { DENIED_TEXT, EXPIRED_TEXT, formatRemaining, gateReducer, initialGate, remainingMs } from './gateState.js';
+import {
+  DENIED_TEXT,
+  EXPIRED_TEXT,
+  cooldownRemainingMs,
+  formatRemaining, gateReducer, initialGate,
+  remainingMs,
+} from './gateState.js';
 import { clearLockData, loadLockData, parseLockData } from './lockDataStore.js';
 import { describeError } from './errors.js';
 import { KeyboxError, messageFor, runCommand } from './runCommand.js';
@@ -58,7 +64,7 @@ export default function KeyboxScreen({ onHome }) {
       knownLock.current = has;
       const at = Date.now();
       setNow(at);
-      gateDispatch({ type: 'status', payload: { grant: status.grant }, now: at });
+      gateDispatch({ type: 'status', payload: { grant: status.grant, cooldown: status.cooldown }, now: at });
     } catch (err) {
       if (!mounted.current) return;
       // Never pretend there is no lock, and never drop an open window, on a failed fetch.
@@ -93,16 +99,18 @@ export default function KeyboxScreen({ onHome }) {
     };
   }, [refreshStatus]);
 
-  // Countdown: one tick per second, only while a window is open.
+  // Countdown: one tick per second, only while a window is open or a cooldown is running.
+  const cooling = gate.cooldownDeadline > now;
+  const ticking = gate.phase === 'approved' || cooling;
   useEffect(() => {
-    if (gate.phase !== 'approved') return undefined;
+    if (!ticking) return undefined;
     const id = setInterval(() => {
       const at = Date.now();
       setNow(at);
       gateDispatch({ type: 'tick', now: at });
     }, 1000);
     return () => clearInterval(id);
-  }, [gate.phase]);
+  }, [ticking]);
 
   async function handleImport(e) {
     e.preventDefault();
@@ -132,7 +140,14 @@ export default function KeyboxScreen({ onHome }) {
       setNow(at);
       gateDispatch({ type: 'answered', payload: result, now: at });
     } catch (err) {
-      if (mounted.current) gateDispatch({ type: 'failed', payload: err.message });
+      if (!mounted.current) return;
+      if (err.status === 429 && typeof err.retryInMs === 'number') {
+        const at = Date.now();
+        setNow(at);
+        gateDispatch({ type: 'cooldown', retryInMs: err.retryInMs, now: at });
+      } else {
+        gateDispatch({ type: 'failed', payload: err.message });
+      }
     }
   }
 
@@ -238,9 +253,14 @@ export default function KeyboxScreen({ onHome }) {
                 placeholder="Reason (optional)"
                 className={`${FIELD} min-h-20 max-h-[40vh]`}
               />
-              <ActionButton type="button" disabled={asking} onClick={handleAsk}>
+              <ActionButton type="button" disabled={asking || cooling} onClick={handleAsk}>
                 {asking ? 'Asking Libby…' : 'Ask Libby'}
               </ActionButton>
+              {cooling && (
+                <p className="text-center opacity-70">
+                  {`Libby said no. You can ask again in ${formatRemaining(cooldownRemainingMs(gate, now))}.`}
+                </p>
+              )}
             </div>
           )}
 

@@ -29,6 +29,12 @@ function createKeyboxRouter({ askKin = askKinDirect, now = Date.now, env = proce
     return left > 0 ? { active: true, expiresInMs: left } : { active: false, expiresInMs: 0 };
   };
 
+  const cooldownState = () => {
+    const until = store.load().keybox?.cooldownUntil;
+    const left = typeof until === 'number' ? Math.ceil(until - now()) : 0;
+    return left > 0 ? { active: true, retryInMs: left } : { active: false, retryInMs: 0 };
+  };
+
   // Everything except the lock-data backup fails closed without a valid keyword.
   const needGate = (req, res, next) => {
     const keyword = gate.getKeyword(env);
@@ -38,7 +44,7 @@ function createKeyboxRouter({ askKin = askKinDirect, now = Date.now, env = proce
   };
 
   router.get('/keybox/status', needGate, (req, res) => {
-    res.json({ hasLock: Boolean(store.load().keybox?.lockData), grant: grantState() });
+    res.json({ hasLock: Boolean(store.load().keybox?.lockData), grant: grantState(), cooldown: cooldownState() });
   });
 
   router.post('/keybox/request', needGate, async (req, res) => {
@@ -50,6 +56,10 @@ function createKeyboxRouter({ askKin = askKinDirect, now = Date.now, env = proce
     }
     const current = grantState();
     if (current.active) return res.json({ approved: true, reply: '', grant: current });
+    const cooling = cooldownState();
+    if (cooling.active) {
+      return res.status(429).json({ error: 'Please wait before asking again', retryInMs: cooling.retryInMs });
+    }
     let raw;
     try {
       raw = await askKin({ message: gate.buildRequestMessage(note || undefined) });
@@ -60,10 +70,16 @@ function createKeyboxRouter({ askKin = askKinDirect, now = Date.now, env = proce
     if (approved) {
       const expiresAt = now() + gate.grantWindowMs(env);
       store.update((data) => {
-        data.keybox = { ...data.keybox, grant: { expiresAt } };
+        const { cooldownUntil, ...rest } = data.keybox || {};
+        data.keybox = { ...rest, grant: { expiresAt } };
+      });
+    } else {
+      const cooldownUntil = now() + gate.COOLDOWN_MS;
+      store.update((data) => {
+        data.keybox = { ...data.keybox, cooldownUntil };
       });
     }
-    res.json({ approved, reply: text, grant: grantState() });
+    res.json({ approved, reply: text, grant: grantState(), cooldown: cooldownState() });
   });
 
   router.post('/keybox/credentials', needGate, (req, res) => {

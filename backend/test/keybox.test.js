@@ -107,16 +107,16 @@ test('error responses never echo the key material', async () => {
 const express = require('express');
 const { createKeyboxRouter } = require('../keybox');
 const store = require('../store');
-const { buildRequestMessage } = require('../keyboxGate');
+const { buildRequestMessage, COOLDOWN_MS } = require('../keyboxGate');
 
 const ENV = { KEYBOX_UNLOCK_KEYWORD: 'BLUEBIRD', KEYBOX_GRANT_SECONDS: '120' };
 
 async function gateHarness({ reply = 'Sure, BLUEBIRD.', env = ENV, fail } = {}) {
-  const h = { clock: 1_000_000, calls: [] };
+  const h = { clock: 1_000_000, calls: [], reply, fail };
   const askKin = async ({ message }) => {
     h.calls.push(message);
-    if (fail) throw fail;
-    return reply;
+    if (h.fail) throw h.fail;
+    return h.reply;
   };
   const make = () =>
     express().use(express.json()).use('/api', createKeyboxRouter({ askKin, now: () => h.clock, env }));
@@ -152,7 +152,12 @@ test('credentials are refused without a grant', async () => {
 test('a reply without the keyword grants nothing', async () => {
   const h = await gateSetup({ reply: 'No.' });
   const r = await h.call('/request', {});
-  assert.deepStrictEqual(r.body, { approved: false, reply: 'No.', grant: { active: false, expiresInMs: 0 } });
+  assert.deepStrictEqual(r.body, {
+    approved: false,
+    reply: 'No.',
+    grant: { active: false, expiresInMs: 0 },
+    cooldown: { active: true, retryInMs: 300000 },
+  });
   assert.strictEqual((await h.call('/credentials')).status, 403);
   h.srv.close();
 });
@@ -175,7 +180,11 @@ test('the grant expires', async () => {
   await h.call('/request', {});
   h.clock += 120_001;
   const s = await h.call('/status');
-  assert.deepStrictEqual(s.body, { hasLock: true, grant: { active: false, expiresInMs: 0 } });
+  assert.deepStrictEqual(s.body, {
+    hasLock: true,
+    grant: { active: false, expiresInMs: 0 },
+    cooldown: { active: false, retryInMs: 0 },
+  });
   assert.strictEqual((await h.call('/credentials')).status, 403);
   h.srv.close();
 });
@@ -284,5 +293,105 @@ test('a denied reply with a nested keyword does not reassemble it', async () => 
   const r = await h.call('/request', {});
   assert.strictEqual(r.body.approved, false);
   assert.ok(!r.body.reply.toLowerCase().includes('bluebird'));
+  h.srv.close();
+});
+
+// ---- cooldown after a denied request ----
+test('COOLDOWN_MS is 5 minutes', () => {
+  assert.strictEqual(COOLDOWN_MS, 300_000);
+});
+
+test('a denial starts a cooldown and a second request is 429 without asking Libby', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  const r1 = await h.call('/request', {});
+  assert.strictEqual(r1.body.cooldown.active, true);
+  assert.strictEqual(r1.body.cooldown.retryInMs, 300000);
+  h.clock += 1000;
+  const r2 = await h.call('/request', {});
+  assert.strictEqual(r2.status, 429);
+  assert.deepStrictEqual(r2.body, { error: 'Please wait before asking again', retryInMs: 299000 });
+  assert.strictEqual(h.calls.length, 1);
+  h.srv.close();
+});
+
+test('the cooldown boundary: still active at +299999, over at +300000, Libby asked after +300001', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  await h.call('/request', {});
+  h.clock += 299_999;
+  assert.strictEqual((await h.call('/request', {})).status, 429);
+  h.clock += 1;
+  assert.strictEqual((await h.call('/status')).body.cooldown.active, false);
+  h.clock += 1;
+  const r = await h.call('/request', {});
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(h.calls.length, 2);
+  h.srv.close();
+});
+
+test('a Kindroid failure starts no cooldown', async () => {
+  const h = await gateSetup({ fail: new Error('Kindroid took too long to reply') });
+  assert.strictEqual((await h.call('/request', {})).status, 502);
+  assert.deepStrictEqual((await h.call('/status')).body.cooldown, { active: false, retryInMs: 0 });
+  h.fail = null;
+  h.reply = 'Sure, BLUEBIRD.';
+  assert.strictEqual((await h.call('/request', {})).status, 200);
+  h.srv.close();
+});
+
+test('an approval starts no cooldown and clears an expired-or-stale one', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  await h.call('/request', {});
+  store.update((d) => {
+    d.keybox = { ...d.keybox, cooldownUntil: h.clock + 10 }; // stale marker still present
+  });
+  h.clock += 11;
+  h.reply = 'Sure, BLUEBIRD.';
+  const r = await h.call('/request', {});
+  assert.strictEqual(r.body.approved, true);
+  assert.deepStrictEqual(r.body.cooldown, { active: false, retryInMs: 0 });
+  assert.strictEqual(store.load().keybox.cooldownUntil, undefined);
+  assert.deepStrictEqual(store.load().keybox.lockData, lock());
+  h.srv.close();
+});
+
+test('validation and gate errors do not start or consult a cooldown', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  await h.call('/request', {});
+  const bad = await h.call('/request', { note: 5 });
+  assert.strictEqual(bad.status, 400);
+  h.srv.close();
+});
+
+test('status reports the cooldown', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  await h.call('/request', {});
+  h.clock += 60_000;
+  assert.deepStrictEqual((await h.call('/status')).body.cooldown, { active: true, retryInMs: 240000 });
+  h.srv.close();
+});
+
+test('an active grant bypasses the cooldown check', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  await h.call('/request', {});
+  store.update((d) => {
+    d.keybox = { ...d.keybox, grant: { expiresAt: h.clock + 120000 } };
+  });
+  const r = await h.call('/request', {});
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.approved, true);
+  assert.strictEqual(h.calls.length, 1);
+  h.srv.close();
+});
+
+test('the cooldown survives a restart and keeps lock data', async () => {
+  const h = await gateSetup({ reply: 'No.' });
+  await h.call('/request', {});
+  const srv2 = h.make().listen(0);
+  await new Promise((r) => srv2.once('listening', r));
+  const res = await fetch(`http://127.0.0.1:${srv2.address().port}/api/keybox/status`);
+  assert.deepStrictEqual((await res.json()).cooldown, { active: true, retryInMs: 300000 });
+  assert.ok(fs.readFileSync(path.join(dir, 'data.json'), 'utf8').includes('cooldownUntil'));
+  assert.deepStrictEqual(store.load().keybox.lockData, lock());
+  srv2.close();
   h.srv.close();
 });

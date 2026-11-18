@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { initialGate, gateReducer, remainingMs, formatRemaining, DENIED_TEXT, EXPIRED_TEXT } from './gateState.js'
+import { initialGate, gateReducer, remainingMs, cooldownRemainingMs, formatRemaining, DENIED_TEXT, EXPIRED_TEXT } from './gateState.js'
 
 const activeGrant = { active: true, expiresInMs: 120000 }
 const inactiveGrant = { active: false, expiresInMs: 0 }
@@ -97,5 +97,60 @@ describe('remainingMs and formatRemaining', () => {
   it('exports the user-facing texts', () => {
     expect(DENIED_TEXT).toBe("Libby didn't approve opening the box.")
     expect(EXPIRED_TEXT).toBe('The window has closed. Ask Libby again.')
+  })
+})
+
+describe('cooldown', () => {
+  const cd = { active: true, retryInMs: 300000 }
+  const noCd = { active: false, retryInMs: 0 }
+
+  it('starts at 0', () => {
+    expect(initialGate.cooldownDeadline).toBe(0)
+  })
+
+  it('answered denial sets the cooldown deadline', () => {
+    const s = gateReducer(initialGate, { type: 'answered', payload: { approved: false, reply: 'no', grant: inactiveGrant, cooldown: cd }, now: 1000 })
+    expect(s.phase).toBe('denied')
+    expect(s.cooldownDeadline).toBe(301000)
+    expect(cooldownRemainingMs(s, 2000)).toBe(299000)
+  })
+
+  it('status with an active cooldown sets the deadline, keeping the phase', () => {
+    const s = gateReducer(initialGate, { type: 'status', payload: { grant: inactiveGrant, cooldown: cd }, now: 5000 })
+    expect(s.phase).toBe('idle')
+    expect(s.cooldownDeadline).toBe(305000)
+  })
+
+  it('status without a cooldown field or inactive leaves the deadline alone', () => {
+    const base = { ...initialGate, cooldownDeadline: 9000 }
+    expect(gateReducer(base, { type: 'status', payload: { grant: inactiveGrant }, now: 1 })).toBe(base)
+    expect(gateReducer(base, { type: 'status', payload: { grant: inactiveGrant, cooldown: noCd }, now: 1 })).toBe(base)
+  })
+
+  it('a cooldown action (429) sets the deadline and leaves the error phase out of it', () => {
+    const asking = { ...initialGate, phase: 'asking' }
+    const s = gateReducer(asking, { type: 'cooldown', retryInMs: 120000, now: 1000 })
+    expect(s.cooldownDeadline).toBe(121000)
+    expect(s.phase).toBe('idle')
+  })
+
+  it('remaining is never negative', () => {
+    const s = { ...initialGate, cooldownDeadline: 1000 }
+    expect(cooldownRemainingMs(s, 400)).toBe(600)
+    expect(cooldownRemainingMs(s, 5000)).toBe(0)
+  })
+
+  it('approval clears the cooldown', () => {
+    const s = gateReducer({ ...initialGate, cooldownDeadline: 9000 }, { type: 'answered', payload: { approved: true, reply: '', grant: activeGrant, cooldown: noCd }, now: 1000 })
+    expect(s.cooldownDeadline).toBe(0)
+  })
+
+  it('a status with an active grant clears the cooldown', () => {
+    const s = gateReducer({ ...initialGate, cooldownDeadline: 9000 }, { type: 'status', payload: { grant: activeGrant, cooldown: noCd }, now: 1000 })
+    expect(s.cooldownDeadline).toBe(0)
+  })
+
+  it('ended clears the cooldown', () => {
+    expect(gateReducer({ ...initialGate, cooldownDeadline: 9000 }, { type: 'ended' }).cooldownDeadline).toBe(0)
   })
 })
