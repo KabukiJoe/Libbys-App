@@ -15,8 +15,8 @@ cd tools/keybox-pc
 npm install
 ```
 
-Windows 10 1703+ uses noble's WinRT binding (built during install), so the PC's own adapter should work.
-If it does not, stop and report back: the fallback (USB dongle, or pairing from the phone) is the owner's call.
+On Windows the SDK's noble BLE layer should be able to use the PC's own adapter (unverified; it depends on the adapter
+and driver). If it cannot, stop and report back: the fallback (USB dongle, or pairing from the phone) is the owner's call.
 
 ## Commands
 
@@ -33,15 +33,36 @@ Wake the box by touching its keypad **right before** running a command (it stays
 touch it about 5 s before the scan starts.
 
 `lockData.json` holds the real AES key and admin keys. It is git-ignored (`tools/keybox-pc/lockData*.json`).
-**Never commit it.** The app imports it unchanged in Task 5.
+**Never commit it.** You paste its contents into the app's keybox screen ("Lock-Daten" import).
+
+Exit codes of the tools: `1` lockData.json missing, `2` timeout / nothing found (box not awake, or no box in pairing
+mode), `3` command or pairing failed, `4` Bluetooth adapter unusable by noble.
+
+### Security notes
+
+- `lockData.json` plus this PC tool is a **self-unlock path**: anyone holding the file can open the box from a PC
+  in Bluetooth range. That stays so until the Libby gate (step 2 of the keybox plan) moves the credentials server side.
+- Pairing prints the **admin PIN** to the console (the SDK logs `set adminPasscode:`) and stores it in `lockData.json`
+  (`privateData.adminPasscode`), so it also ends up in the app after the import. Recommended once the app is
+  verified: neutralise the keypad (checklist step 6) and delete the PC copy of `lockData.json`. Your call.
+- If the first lock/unlock from the PC fails sporadically, it may be the SDK's UInt32 overflow
+  (`UnlockCommand.build()` does `writeUInt32BE(psFromLock + unlockKey)`, dist `api/Commands/UnlockCommand.js` line 32) and
+  not a protocol problem. The app wraps that sum to 32 bits instead.
+
+### Lock type
+
+`pair.js` (scan output and after pairing) prints the lock type, e.g. `LOCK_TYPE_V3 (protocol 5.3, scene 1, org 1/1)`.
+The app assumes `LOCK_TYPE_V3`. **If the tool prints a lock type other than LOCK_TYPE_V3, report back before continuing.**
+For such a lock `lockData.json` gets a `header` entry (`protocolType`, `subVersion`, `scene`, `organization`,
+`subOrganization`) that the app uses instead of the V3 default; for V3 there is no `header` entry.
 
 ## On-arrival checklist (run with the real box)
 
 1. **Check the adapter.** `node pair.js --scan-only`, touching the keypad. Expected: the box appears in the list.
    If noble cannot use the Intel adapter (error, or "Bluetooth adapter not ready"), stop and report back.
-2. **Box test, with the box open and empty.** Find the reset button (on the back of the outside part, under the
-   metal cover; short press reboots with one beep, a 2-3 s hold resets to factory with two beeps). Note whether it can
-   be reached with the lid closed, and write the answer here:
+2. **Box test, with the box open and empty.** Find the reset button (reported to be on the back of the outside part,
+   under the metal cover; the reset behaviour, a short press rebooting and a 2-3 s hold resetting to factory with beeps,
+   is unverified, check the box's own manual). Note whether it can be reached with the lid closed, and write the answer here:
 
    - Reset button reachable with lid closed: _TODO (yes / no)_
 
@@ -52,9 +73,8 @@ touch it about 5 s before the scan starts.
 5. **Official-app check (manual).** Try to add the box in the TTLock app with a throwaway account. Expected: it
    refuses (the box is already initialised by us). Then delete the app and the account.
 6. **Neutralise the keypad.** `node neutralise-keypad.js`. Expected: it reports passcodes cleared and "Passcodes after: 0".
-7. **Fixtures.** `node make-fixtures.js`. Expected: `frames.json` exists, and `rg aesKey` over it shows only the
-   synthetic key `00112233445566778899aabbccddeeff`.
-8. **Commit** the tool, README and fixtures. **Do not commit `lockData.json`.**
+7. **Developer-only:** `node make-fixtures.js` regenerates the test fixtures used by the app's tests (no Bluetooth, no
+   real keys). You do not need it for using the box.
 
 ## Fixtures (`frames.json`)
 
