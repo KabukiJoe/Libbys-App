@@ -57,7 +57,11 @@ async function withPairedLock(action, { timeoutMs = 60000 } = {}) {
     console.log('Bluetooth ready. Touch the keypad to wake the box.');
     await client.startScanLock();
   });
-  await client.prepareBTService();
+  if (!(await client.prepareBTService())) {
+    clearTimeout(timer);
+    console.error('Bluetooth adapter not ready (noble cannot use it). Report back: fallback is a USB dongle or pairing from the phone.');
+    process.exit(4);
+  }
   return client;
 }
 

@@ -9,6 +9,7 @@ const scanOnly = process.argv.includes('--scan-only');
 const client = new TTLockClient({});
 const seen = new Set();
 let pairing = false;
+let scanTimer = null;
 
 client.on('foundLock', async (lock) => {
   const addr = lock.getAddress();
@@ -19,6 +20,7 @@ client.on('foundLock', async (lock) => {
   }
   if (scanOnly || pairing || lock.isInitialized()) return;
   pairing = true;
+  clearTimeout(scanTimer); // never kill a pairing in progress
   try {
     await client.stopScanLock();
     console.log('Box is in pairing mode, connecting...');
@@ -38,9 +40,14 @@ client.on('foundLock', async (lock) => {
 client.on('ready', async () => {
   console.log('Bluetooth adapter ready, scanning for 30s... touch the keypad now.');
   await client.startScanLock();
-  setTimeout(() => {
-    console.log(seen.size ? 'Scan done.' : 'Nothing found. Is the box awake? Is the adapter usable by noble?');
-    process.exit(seen.size ? 0 : 2);
+  scanTimer = setTimeout(() => {
+    if (pairing) return;
+    if (scanOnly) {
+      console.log(seen.size ? 'Scan done.' : 'Nothing found. Is the box awake? Is the adapter usable by noble?');
+      process.exit(seen.size ? 0 : 2);
+    }
+    console.error('Scan timed out: no box in pairing mode found, nothing paired. Reset the box, touch the keypad and retry.');
+    process.exit(2);
   }, 30000);
 });
 
