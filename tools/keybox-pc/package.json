@@ -1,0 +1,8 @@
+{
+  "name": "keybox-pc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PC tool to pair/lock/unlock a TTLock keybox over local BLE (no cloud) and generate protocol fixtures",
+  "scripts": { "scan": "node pair.js --scan-only", "pair": "node pair.js", "fixtures": "node make-fixtures.js" },
+  "dependencies": { "ttlock-sdk-js": "0.3.14" }
+}

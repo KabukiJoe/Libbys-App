@@ -1,0 +1,417 @@
+[
+  {
+    "name": "plain-init",
+    "kind": "request",
+    "description": "Command with empty body: not encrypted, just envelope + CRC",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 69
+    },
+    "bytesHex": "7f5a0503010001000145aa00b3",
+    "wireHex": "7f5a0503010001000145aa00b30d0a",
+    "aesEncrypted": false,
+    "plaintextHex": ""
+  },
+  {
+    "name": "aes-check-user-time",
+    "kind": "request",
+    "description": "COMM_CHECK_USER_TIME; first step of lock()/unlock() in the SDK",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 85,
+      "startDate": "0001311400",
+      "endDate": "9911301400",
+      "uid": 0,
+      "lockFlagPos": 0
+    },
+    "bytesHex": "7f5a0503010001000155aa209e82de2b02d99aefa2342d719156542d2fe1500ee987758e44bceea1d0f7db525f",
+    "wireHex": "7f5a0503010001000155aa209e82de2b02d99aefa2342d719156542d2fe1500ee987758e44bceea1d0f7db525f0d0a",
+    "aesEncrypted": true,
+    "plaintextHex": "00011f0e00630b1e0e0000000000000000"
+  },
+  {
+    "name": "check-admin",
+    "kind": "request",
+    "description": "COMM_CHECK_ADMIN; first step of macro_adminLogin()",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 65,
+      "adminPs": 16909060
+    },
+    "bytesHex": "7f5a0503010001000141aa10238f7fe7d114a2b3059fffebc4082df1b5",
+    "wireHex": "7f5a0503010001000141aa10238f7fe7d114a2b3059fffebc4082df1b50d0a",
+    "aesEncrypted": true,
+    "plaintextHex": "0102030400000000000000"
+  },
+  {
+    "name": "check-random",
+    "kind": "request",
+    "description": "COMM_CHECK_RANDOM; second step of macro_adminLogin()",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 48,
+      "psFromLock": 168496141,
+      "unlockKey": 84281096,
+      "sum": 252777237
+    },
+    "bytesHex": "7f5a0503010001000130aa10005b80cc5d8757ec8a6417b5e9a593716f",
+    "wireHex": "7f5a0503010001000130aa10005b80cc5d8757ec8a6417b5e9a593716f0d0a",
+    "aesEncrypted": true,
+    "plaintextHex": "0f111315"
+  },
+  {
+    "name": "unlock",
+    "kind": "request",
+    "description": "COMM_UNLOCK; body = u32be(psFromLock+unlockKey) + u32be(unix time, frozen)",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 71,
+      "psFromLock": 168496141,
+      "unlockKey": 84281096,
+      "sum": 252777237,
+      "unixTime": 1767225600
+    },
+    "bytesHex": "7f5a0503010001000147aa10be0d0722a1975c48431255e8487122c330",
+    "wireHex": "7f5a0503010001000147aa10be0d0722a1975c48431255e8487122c3300d0a",
+    "aesEncrypted": true,
+    "plaintextHex": "0f1113156955b900"
+  },
+  {
+    "name": "lock",
+    "kind": "request",
+    "description": "COMM_FUNCTION_LOCK; same body layout as unlock",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 88,
+      "psFromLock": 168496141,
+      "unlockKey": 84281096,
+      "sum": 252777237,
+      "unixTime": 1767225600
+    },
+    "bytesHex": "7f5a0503010001000158aa10be0d0722a1975c48431255e8487122c3b6",
+    "wireHex": "7f5a0503010001000158aa10be0d0722a1975c48431255e8487122c3b60d0a",
+    "aesEncrypted": true,
+    "plaintextHex": "0f1113156955b900"
+  },
+  {
+    "name": "response-check-user-time-ok",
+    "kind": "response",
+    "description": "Success response carrying psFromLock",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 85,
+      "responseCode": 1
+    },
+    "bytesHex": "7f5a0503010001000155aa10cbfba0fc33018aca80eabed45b0b22346f",
+    "wireHex": "7f5a0503010001000155aa10cbfba0fc33018aca80eabed45b0b22346f0d0a",
+    "expected": {
+      "command": "CheckUserTimeCommand",
+      "commandType": 85,
+      "response": 1,
+      "responseName": "SUCCESS",
+      "dataHex": "0a0b0c0d",
+      "plaintextHex": "55010a0b0c0d",
+      "psFromLock": 168496141
+    }
+  },
+  {
+    "name": "response-unlock-ok",
+    "kind": "response",
+    "description": "Success response to unlock: battery, uid, uniqueid, yymmddhhmmss",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 71,
+      "responseCode": 1
+    },
+    "bytesHex": "7f5a0503010001000147aa206ec33e5d2783aebee45d583e1c704e41ce094a07eb3a01751b84e7ec64e7a43664",
+    "wireHex": "7f5a0503010001000147aa206ec33e5d2783aebee45d583e1c704e41ce094a07eb3a01751b84e7ec64e7a436640d0a",
+    "expected": {
+      "command": "UnlockCommand",
+      "commandType": 71,
+      "response": 1,
+      "responseName": "SUCCESS",
+      "dataHex": "5800000001000000021a0101000005",
+      "plaintextHex": "47015800000001000000021a0101000005",
+      "batteryCapacity": 88,
+      "uid": 1,
+      "uniqueid": 2,
+      "dateTime": "260101000005"
+    }
+  },
+  {
+    "name": "response-lock-ok",
+    "kind": "response",
+    "description": "Success response to lock",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 88,
+      "responseCode": 1
+    },
+    "bytesHex": "7f5a0503010001000158aa20995e8904a51d602366c987315bec56cb18ebe80fde8d7a97608d29bdb724371d35",
+    "wireHex": "7f5a0503010001000158aa20995e8904a51d602366c987315bec56cb18ebe80fde8d7a97608d29bdb724371d350d0a",
+    "expected": {
+      "command": "LockCommand",
+      "commandType": 88,
+      "response": 1,
+      "responseName": "SUCCESS",
+      "dataHex": "5800000001000000021a0101000005",
+      "plaintextHex": "58015800000001000000021a0101000005",
+      "batteryCapacity": 88,
+      "uid": 1,
+      "uniqueid": 2,
+      "dateTime": "260101000005"
+    }
+  },
+  {
+    "name": "response-unlock-failed",
+    "kind": "response",
+    "description": "Lock replied FAILED (0) to unlock, no payload",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 71,
+      "responseCode": 0
+    },
+    "bytesHex": "7f5a0503010001000147aa108f132ce6b297003c5f8ecca93f87d5d8fb",
+    "wireHex": "7f5a0503010001000147aa108f132ce6b297003c5f8ecca93f87d5d8fb0d0a",
+    "expected": {
+      "command": "UnlockCommand",
+      "commandType": 71,
+      "response": 0,
+      "responseName": "FAILED",
+      "dataHex": "",
+      "plaintextHex": "4700"
+    }
+  },
+  {
+    "name": "response-lock-failed",
+    "kind": "response",
+    "description": "Lock replied FAILED (0) to lock, no payload",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 88,
+      "responseCode": 0
+    },
+    "bytesHex": "7f5a0503010001000158aa10155b3976ac938330a0895dd583d1e78d17",
+    "wireHex": "7f5a0503010001000158aa10155b3976ac938330a0895dd583d1e78d170d0a",
+    "expected": {
+      "command": "LockCommand",
+      "commandType": 88,
+      "response": 0,
+      "responseName": "FAILED",
+      "dataHex": "",
+      "plaintextHex": "5800"
+    }
+  },
+  {
+    "name": "response-check-user-time-failed",
+    "kind": "response",
+    "description": "Lock replied FAILED (0) to check-user-time",
+    "lockData": {
+      "address": "AA:BB:CC:DD:EE:FF",
+      "battery": 90,
+      "rssi": -60,
+      "autoLockTime": 5,
+      "lockedStatus": 0,
+      "privateData": {
+        "aesKey": "00112233445566778899aabbccddeeff",
+        "admin": {
+          "adminPs": 16909060,
+          "unlockKey": 84281096
+        },
+        "adminPasscode": "1234567",
+        "pwdInfo": []
+      }
+    },
+    "input": {
+      "lockType": "LOCK_TYPE_V3",
+      "commandType": 85,
+      "responseCode": 0
+    },
+    "bytesHex": "7f5a0503010001000155aa10ded5ec441b0b88207120571fa82d16422e",
+    "wireHex": "7f5a0503010001000155aa10ded5ec441b0b88207120571fa82d16422e0d0a",
+    "expected": {
+      "command": "CheckUserTimeCommand",
+      "commandType": 85,
+      "response": 0,
+      "responseName": "FAILED",
+      "dataHex": "",
+      "plaintextHex": "5500"
+    }
+  }
+]

@@ -5,3 +5,7 @@ backend/data
 
 frontend/.env.production
 frontend/android/app/google-services.json
+
+# keybox PC tool (real lock keys must never be committed)
+tools/keybox-pc/lockData*.json
+tools/keybox-pc/node_modules
