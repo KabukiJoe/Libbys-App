@@ -19,6 +19,18 @@ phone) before anything else depends on it.
   credentials behind the gate (server side).
 - Open design question for step 2: the Kindroid client today only talks to the group chat; the 1:1
   chat needs new API calls.
+- Step 3 (optional, only if the app's 20-cycle test shows Bluetooth failures often enough to matter):
+  fallback keypad PIN. A PIN is set on the box and kept in the app (or server); it is shown only after
+  Libby says yes, and rotated afterwards. Caveats found in discussion (2026-11-18):
+  - Storing it "only in the app" is a speed bump, not protection: the user owns the phone, the source,
+    and a debug APK; Android cloud backup may also copy app data unless disabled in the manifest.
+  - Rotation needs Bluetooth, the very thing that may fail. Until a rotation succeeds, a PIN the user has
+    seen stays valid, and the user could deliberately block rotation (Bluetooth off).
+  - It needs admin login and PIN-setting commands ported into the app. The box sends replies with a
+    wrong checksum at `check random`, which that login uses.
+  - One-time or time-limited TTLock passcodes might be cleaner but are unverified on this box and also
+    need Bluetooth to create.
+  Nothing in steps 1-2 blocks this: the admin can set a new PIN at any time with the lock keys.
 
 ## Non-goals
 
