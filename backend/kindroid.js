@@ -71,6 +71,12 @@ async function sendKinMessage({ message }) {
   return request('POST', '/send-message', apiKey, { ai_id: aiId, message });
 }
 
+// Sends a 1:1 message to the main kin and returns the reply text (may be '').
+async function askKinDirect({ message }) {
+  const { body } = await sendKinMessage({ message });
+  return extractReply(body);
+}
+
 // Reads the group's recent history and returns the kin's reply to our message.
 async function fetchKinReply({ apiKey, groupId, aiId, message, sentAt }) {
   const query = new URLSearchParams({
@@ -137,4 +143,4 @@ function extractReply(body) {
   }
 }
 
-module.exports = { askKin, sendKinMessage };
+module.exports = { askKin, askKinDirect, sendKinMessage };

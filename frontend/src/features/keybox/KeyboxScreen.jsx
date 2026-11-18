@@ -1,9 +1,22 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import ActionButton from '../../components/ActionButton.jsx';
 import Header from '../../components/Header.jsx';
-import { backupKeyboxLockData } from '../../api.js';
+import {
+  backupKeyboxLockData,
+  endKeyboxGrant,
+  fetchKeyboxCredentials,
+  getKeyboxStatus,
+  requestKeyboxOpen,
+} from '../../api.js';
 import { initialState, keyboxReducer } from './keyboxState.js';
-import { loadLockData, parseLockData, saveLockData } from './lockDataStore.js';
+import {
+  DENIED_TEXT,
+  EXPIRED_TEXT,
+  cooldownRemainingMs,
+  formatRemaining, gateReducer, initialGate,
+  remainingMs,
+} from './gateState.js';
+import { clearLockData, loadLockData, parseLockData } from './lockDataStore.js';
 import { describeError } from './errors.js';
 import { KeyboxError, messageFor, runCommand } from './runCommand.js';
 
@@ -16,65 +29,157 @@ const STEP_TEXT = {
 
 const DONE_TEXT = { open: 'Box opened' };
 
+const ERROR_BOX =
+  'rounded-2xl bg-red-50 px-4 py-3 text-red-700 ring-1 ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-900';
+
+const FIELD =
+  'field-sizing-content w-full resize-none rounded-2xl bg-white/80 p-4 text-lg shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 backdrop-blur placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-white/10 dark:ring-white/10 dark:placeholder:text-gray-500';
+
 export default function KeyboxScreen({ onHome }) {
   const [state, dispatch] = useReducer(keyboxReducer, initialState);
-  const [lockData, setLockData] = useState(null);
+  const [gate, gateDispatch] = useReducer(gateReducer, initialGate);
+  const [hasLock, setHasLock] = useState(false);
+  // Set only while the lock state is still unknown (first status fetch failed).
+  const [statusError, setStatusError] = useState('');
+  const knownLock = useRef(null);
+  const [note, setNote] = useState('');
+  const [now, setNow] = useState(() => Date.now());
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
+  const [importing, setImporting] = useState(false);
   const [replacing, setReplacing] = useState(false);
-  // Server backup of the lock data: { status: 'idle' | 'working' | 'ok' | 'error', message }
-  const [backup, setBackup] = useState({ status: 'idle', message: '' });
   const mounted = useRef(true);
   const running = useRef(false);
 
-  useEffect(() => {
-    mounted.current = true;
-    loadLockData().then((data) => {
+  // Asks the server for the lock and window state; a failure on first load shows a status error; later failures are ignored so the known lock and open window stay.
+  const refreshStatus = useCallback(async () => {
+    try {
+      const status = await getKeyboxStatus();
       if (!mounted.current) return;
-      setLockData(data);
-      dispatch({ type: 'loaded', payload: data });
-    });
-    return () => {
-      mounted.current = false;
-    };
+      const has = Boolean(status.hasLock);
+      setStatusError('');
+      setHasLock(has);
+      // Only on first load or a real change, so a refetch does not clear the 'Box opened' message.
+      if (knownLock.current !== has) dispatch({ type: 'loaded', payload: has });
+      knownLock.current = has;
+      const at = Date.now();
+      setNow(at);
+      gateDispatch({ type: 'status', payload: { grant: status.grant, cooldown: status.cooldown }, now: at });
+    } catch (err) {
+      if (!mounted.current) return;
+      // Never pretend there is no lock, and never drop an open window, on a failed fetch.
+      if (knownLock.current === null) setStatusError(err.message);
+    }
   }, []);
 
-  async function handleBackup(lock, prefix = '') {
-    setBackup({ status: 'working', message: '' });
-    try {
-      await backupKeyboxLockData(lock);
-      if (mounted.current) setBackup({ status: 'ok', message: 'Backed up on the server.' });
-    } catch (err) {
-      if (mounted.current) setBackup({ status: 'error', message: `${prefix}Server backup failed: ${err.message}` });
-    }
-  }
+  useEffect(() => {
+    mounted.current = true;
+    (async () => {
+      // Migration: a lock still stored on this phone moves to the server; the phone copy is
+      // cleared only after the upload succeeded.
+      try {
+        const legacy = await loadLockData();
+        if (legacy) {
+          await backupKeyboxLockData(legacy);
+          await clearLockData();
+        }
+      } catch {
+        // Keep the phone copy; the next visit retries.
+      }
+      if (mounted.current) await refreshStatus();
+    })();
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshStatus();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      mounted.current = false;
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshStatus]);
+
+  // Countdown: one tick per second, only while a window is open or a cooldown is running.
+  const cooling = gate.cooldownDeadline > now;
+  const ticking = gate.phase === 'approved' || cooling;
+  useEffect(() => {
+    if (!ticking) return undefined;
+    const id = setInterval(() => {
+      const at = Date.now();
+      setNow(at);
+      gateDispatch({ type: 'tick', now: at });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [ticking]);
 
   async function handleImport(e) {
     e.preventDefault();
+    setImporting(true);
     try {
       const lock = parseLockData(importText);
-      await saveLockData(lock);
+      await backupKeyboxLockData(lock);
       if (!mounted.current) return;
-      setLockData(lock);
       setImportError('');
       setImportText('');
       setReplacing(false);
-      dispatch({ type: 'loaded', payload: lock });
-      handleBackup(lock, 'Saved on this phone. ');
+      await refreshStatus();
     } catch (err) {
       if (mounted.current) setImportError(err.message);
+    } finally {
+      if (mounted.current) setImporting(false);
     }
   }
 
-  async function handleCommand(kind) {
-    if (running.current || !lockData) return;
-    running.current = true;
-    dispatch({ type: 'start', payload: kind });
+  async function handleAsk() {
+    if (gate.phase === 'asking') return;
+    gateDispatch({ type: 'ask' });
     try {
-      await runCommand(kind, lockData, {
+      const result = await requestKeyboxOpen(note);
+      if (!mounted.current) return;
+      const at = Date.now();
+      setNow(at);
+      gateDispatch({ type: 'answered', payload: result, now: at });
+    } catch (err) {
+      if (!mounted.current) return;
+      if (err.status === 429 && typeof err.retryInMs === 'number') {
+        const at = Date.now();
+        setNow(at);
+        gateDispatch({ type: 'cooldown', retryInMs: err.retryInMs, now: at });
+      } else {
+        gateDispatch({ type: 'failed', payload: err.message });
+      }
+    }
+  }
+
+  async function handleOpen() {
+    if (running.current) return;
+    running.current = true;
+    dispatch({ type: 'start', payload: 'open' });
+    try {
+      // Credentials live only in this local variable.
+      let lockData;
+      try {
+        ({ lockData } = await fetchKeyboxCredentials());
+      } catch (err) {
+        if (err.status === 403) {
+          // The window ended while the screen was open.
+          dispatch({ type: 'cancel' });
+          running.current = false;
+          await refreshStatus();
+          return;
+        }
+        throw err;
+      }
+      await runCommand('open', lockData, {
         onState: (s) => mounted.current && dispatch({ type: 'step', payload: s }),
       });
       if (mounted.current) dispatch({ type: 'succeeded' });
+      try {
+        await endKeyboxGrant();
+      } catch {
+        // The window lapses on its own.
+      }
+      if (mounted.current) gateDispatch({ type: 'ended' });
     } catch (err) {
       const reason = err instanceof KeyboxError ? err.reason : 'failed';
       const detail = err instanceof KeyboxError ? err.detail : describeError(err);
@@ -85,12 +190,30 @@ export default function KeyboxScreen({ onHome }) {
   }
 
   const busy = state.phase === 'busy';
-  const hasData = state.phase !== 'loading' && state.phase !== 'no-data';
-  const showImport = state.phase === 'no-data' || (hasData && replacing && !busy);
+  const loading = state.phase === 'loading';
+  const approved = gate.phase === 'approved';
+  const asking = gate.phase === 'asking';
+  const statusUnknown = loading && Boolean(statusError);
+  const showImport = !loading && (!hasLock || (replacing && !busy));
 
   return (
     <>
       <Header title="Keybox" onBack={busy ? undefined : onHome} />
+
+      {statusUnknown && (
+        <div className="flex animate-fade-up flex-col gap-3">
+          <p className={ERROR_BOX}>{statusError}</p>
+          <ActionButton
+            type="button"
+            onClick={() => {
+              setStatusError('');
+              refreshStatus();
+            }}
+          >
+            Retry
+          </ActionButton>
+        </div>
+      )}
 
       {showImport && (
         <form onSubmit={handleImport} className="flex animate-fade-up flex-col gap-3">
@@ -98,14 +221,10 @@ export default function KeyboxScreen({ onHome }) {
             value={importText}
             onChange={(e) => setImportText(e.target.value)}
             placeholder="Paste the contents of lockData.json here"
-            className="field-sizing-content min-h-32 max-h-[40vh] w-full resize-none rounded-2xl bg-white/80 p-4 text-lg shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 backdrop-blur placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-white/10 dark:ring-white/10 dark:placeholder:text-gray-500"
+            className={`${FIELD} min-h-32 max-h-[40vh]`}
           />
-          {importError && (
-            <p className="rounded-2xl bg-red-50 px-4 py-3 text-red-700 ring-1 ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-900">
-              {importError}
-            </p>
-          )}
-          <ActionButton type="submit" disabled={busy || !importText.trim()}>
+          {importError && <p className={ERROR_BOX}>{importError}</p>}
+          <ActionButton type="submit" disabled={importing || !importText.trim()}>
             Save
           </ActionButton>
           {replacing && (
@@ -123,11 +242,47 @@ export default function KeyboxScreen({ onHome }) {
         </form>
       )}
 
-      {hasData && (
+      {hasLock && (
         <div className="flex animate-fade-up flex-col gap-4">
-          <ActionButton type="button" disabled={busy} onClick={() => handleCommand('open')}>
-            Open
-          </ActionButton>
+          {!approved && !busy && (
+            <div className="flex flex-col gap-3">
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={500}
+                placeholder="Reason (optional)"
+                className={`${FIELD} min-h-20 max-h-[40vh]`}
+              />
+              <ActionButton type="button" disabled={asking || cooling} onClick={handleAsk}>
+                {asking ? 'Asking Libby…' : 'Ask Libby'}
+              </ActionButton>
+              {cooling && (
+                <p className="text-center opacity-70">
+                  {`Libby said no. You can ask again in ${formatRemaining(cooldownRemainingMs(gate, now))}.`}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div aria-live="polite" className="flex flex-col gap-3">
+            {gate.phase === 'denied' && (
+              <div className={ERROR_BOX}>
+                <p>{DENIED_TEXT}</p>
+                {gate.reply && <p className="mt-1 break-words opacity-80">{gate.reply}</p>}
+              </div>
+            )}
+            {gate.phase === 'error' && <p className={ERROR_BOX}>{gate.error}</p>}
+            {gate.phase === 'expired' && <p className="text-center opacity-70">{EXPIRED_TEXT}</p>}
+          </div>
+
+          {approved && (
+            <>
+              {gate.reply && <p className="break-words text-center">{gate.reply}</p>}
+              <ActionButton type="button" disabled={busy} onClick={handleOpen}>
+                {`Open box (${formatRemaining(remainingMs(gate, now))})`}
+              </ActionButton>
+            </>
+          )}
 
           <div aria-live="polite">
             {busy && <p className="text-center opacity-70">{STEP_TEXT[state.step] ?? 'Looking for the box…'}</p>}
@@ -135,7 +290,7 @@ export default function KeyboxScreen({ onHome }) {
               <p className="text-center font-semibold">{DONE_TEXT[state.lastAction]}</p>
             )}
             {state.phase === 'failed' && (
-              <div className="rounded-2xl bg-red-50 px-4 py-3 text-red-700 ring-1 ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-900">
+              <div className={ERROR_BOX}>
                 <p>{state.message}</p>
                 {state.detail && <p className="mt-1 break-words text-sm opacity-70">{state.detail}</p>}
               </div>
@@ -152,19 +307,6 @@ export default function KeyboxScreen({ onHome }) {
             >
               Replace lock data
             </ActionButton>
-          )}
-          {!busy && !replacing && (
-            <ActionButton type="button" disabled={backup.status === 'working'} onClick={() => handleBackup(lockData)}>
-              Back up to server
-            </ActionButton>
-          )}
-          {backup.message && (
-            <p
-              className={`text-center text-sm ${backup.status === 'error' ? 'text-red-700 dark:text-red-300' : 'opacity-70'}`}
-              aria-live="polite"
-            >
-              {backup.message}
-            </p>
           )}
         </div>
       )}

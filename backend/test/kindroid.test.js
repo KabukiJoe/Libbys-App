@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { sendKinMessage } = require('../kindroid');
+const { sendKinMessage, askKinDirect } = require('../kindroid');
 
 test('sendKinMessage targets the configured AI with a direct message', async () => {
   const saved = {
@@ -26,6 +26,58 @@ test('sendKinMessage targets the configured AI with a direct message', async () 
       message: 'Daily summary',
     });
   } finally {
+    if (saved.apiKey === undefined) delete process.env.KINDROID_API_KEY;
+    else process.env.KINDROID_API_KEY = saved.apiKey;
+    if (saved.aiId === undefined) delete process.env.KINDROID_AI_ID;
+    else process.env.KINDROID_AI_ID = saved.aiId;
+    global.fetch = saved.fetch;
+  }
+});
+
+test('askKinDirect returns the kin reply text from send-message', async () => {
+  const saved = {
+    apiKey: process.env.KINDROID_API_KEY,
+    aiId: process.env.KINDROID_AI_ID,
+    fetch: global.fetch,
+  };
+  process.env.KINDROID_API_KEY = 'test-key';
+  process.env.KINDROID_AI_ID = 'test-ai';
+  let call;
+  global.fetch = async (url, options) => {
+    call = { url, options };
+    return new Response('Sure. BLUEBIRD', { status: 200, headers: { 'content-type': 'text/plain' } });
+  };
+
+  try {
+    const reply = await askKinDirect({ message: 'hi' });
+    assert.strictEqual(reply, 'Sure. BLUEBIRD');
+    assert.strictEqual(call.url, 'https://api.kindroid.ai/v1/send-message');
+    assert.deepStrictEqual(JSON.parse(call.options.body), { ai_id: 'test-ai', message: 'hi' });
+  } finally {
+    if (saved.apiKey === undefined) delete process.env.KINDROID_API_KEY;
+    else process.env.KINDROID_API_KEY = saved.apiKey;
+    if (saved.aiId === undefined) delete process.env.KINDROID_AI_ID;
+    else process.env.KINDROID_AI_ID = saved.aiId;
+    global.fetch = saved.fetch;
+  }
+});
+
+test('askKinDirect rejects when Kindroid returns an HTTP error', async () => {
+  const saved = {
+    apiKey: process.env.KINDROID_API_KEY,
+    aiId: process.env.KINDROID_AI_ID,
+    fetch: global.fetch,
+  };
+  process.env.KINDROID_API_KEY = 'test-key';
+  process.env.KINDROID_AI_ID = 'test-ai';
+  global.fetch = async () => new Response('boom', { status: 500, headers: { 'content-type': 'text/plain' } });
+  const consoleError = console.error;
+  console.error = () => {};
+
+  try {
+    await assert.rejects(() => askKinDirect({ message: 'hi' }), /HTTP 500/);
+  } finally {
+    console.error = consoleError;
     if (saved.apiKey === undefined) delete process.env.KINDROID_API_KEY;
     else process.env.KINDROID_API_KEY = saved.apiKey;
     if (saved.aiId === undefined) delete process.env.KINDROID_AI_ID;
