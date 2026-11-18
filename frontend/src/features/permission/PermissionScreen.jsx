@@ -117,7 +117,7 @@ export default function PermissionScreen({ onHome, onLocked }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Type your message…"
-            className="field-sizing-content min-h-32 max-h-[40vh] w-full resize-none rounded-2xl bg-white/80 p-4 text-lg shadow-lg shadow-violet-900/5 ring-1 ring-violet-200 backdrop-blur placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-white/10 dark:ring-white/10 dark:placeholder:text-gray-500"
+            className="field-sizing-content min-h-32 max-h-[40vh] w-full resize-none rounded-2xl bg-white/80 p-4 text-lg shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 backdrop-blur placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-white/10 dark:ring-white/10 dark:placeholder:text-gray-500"
           />
         </form>
       )}

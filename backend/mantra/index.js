@@ -71,7 +71,7 @@ async function requestMantra() {
     data.mantras = data.mantras.slice(-config.keepMantras);
   });
   console.log(`New mantra ${mantra.id}, due by ${formatLocal(mantra.deadline, config)}`);
-  await push.notifyAll({ title: 'Libby', body: 'You have a new Mantra' });
+  await push.notifyAll({ title: 'Memo', body: 'You have a new notification' });
   return mantra;
 }
 

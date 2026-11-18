@@ -13,7 +13,7 @@ export function IconButton({ label, children, ...props }) {
       type="button"
       aria-label={label}
       {...props}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-violet-700 transition active:scale-95 active:bg-violet-200/60 dark:text-violet-300 dark:active:bg-white/10"
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-700 transition active:scale-95 active:bg-slate-200/60 dark:text-slate-300 dark:active:bg-white/10"
     >
       {children}
     </button>
@@ -30,7 +30,7 @@ export default function Header({ title, onBack, children }) {
             <BackIcon />
           </IconButton>
         )}
-        <h1 className="truncate bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-2xl font-bold text-transparent dark:from-violet-400 dark:to-fuchsia-400">
+        <h1 className="truncate text-2xl font-bold text-slate-800 dark:text-slate-100">
           {title}
         </h1>
       </div>

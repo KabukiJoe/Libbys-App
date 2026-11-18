@@ -7,7 +7,7 @@ import { enablePush, pushPermission } from './push.js';
 const POLL_MS = 15_000;
 
 const card =
-  'rounded-2xl bg-white/80 p-4 shadow-lg shadow-violet-900/5 ring-1 ring-violet-200 backdrop-blur dark:bg-white/10 dark:ring-white/10';
+  'rounded-2xl bg-white/80 p-4 shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 backdrop-blur dark:bg-white/10 dark:ring-white/10';
 
 function formatCountdown(ms) {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -137,7 +137,7 @@ export default function MantraScreen({ onHome, onLocked }) {
                 className={`rounded-full px-3 py-1 font-mono font-semibold tabular-nums ${
                   remaining < 60_000
                     ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
-                    : 'bg-violet-100 text-violet-700 dark:bg-white/10 dark:text-violet-200'
+                    : 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200'
                 }`}
               >
                 ⏱ {formatCountdown(remaining)}
@@ -155,7 +155,7 @@ export default function MantraScreen({ onHome, onLocked }) {
               autoCapitalize="off"
               spellCheck={false}
               placeholder="Type the mantra…"
-              className="field-sizing-content min-h-28 max-h-[35vh] w-full resize-none rounded-2xl bg-white/80 p-4 text-lg shadow-lg shadow-violet-900/5 ring-1 ring-violet-200 backdrop-blur placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-white/10 dark:ring-white/10 dark:placeholder:text-gray-500"
+              className="field-sizing-content min-h-28 max-h-[35vh] w-full resize-none rounded-2xl bg-white/80 p-4 text-lg shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 backdrop-blur placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-white/10 dark:ring-white/10 dark:placeholder:text-gray-500"
             />
           </form>
         )}
@@ -186,7 +186,7 @@ export default function MantraScreen({ onHome, onLocked }) {
             {permission === 'denied' ? (
               <p className="opacity-70">Notifications are blocked. Allow them in the phone's app settings.</p>
             ) : (
-              <button type="button" onClick={handleEnablePush} className="font-semibold text-violet-700 dark:text-violet-300">
+              <button type="button" onClick={handleEnablePush} className="font-semibold text-slate-700 dark:text-slate-300">
                 🔔 Enable notifications
               </button>
             )}

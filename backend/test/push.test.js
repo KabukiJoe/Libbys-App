@@ -16,7 +16,7 @@ function setup(tokens, { responses, throws } = {}) {
   return { data, store, sent, push: createPush({ messaging, store }) };
 }
 
-const PAYLOAD = { title: 'Libby', body: 'You have a new Mantra' };
+const PAYLOAD = { title: 'Memo', body: 'You have a new notification' };
 
 test('addToken stores each token once', () => {
   const { push, data } = setup([]);

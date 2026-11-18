@@ -9,7 +9,7 @@ const FEATURES = [
 export default function HomeScreen({ onOpen }) {
   return (
     <>
-      <Header title="Libby" />
+      <Header title="Memo" />
       <div className="grid animate-fade-up grid-cols-2 gap-3">
         {FEATURES.map((feature) => (
           <button
@@ -17,7 +17,7 @@ export default function HomeScreen({ onOpen }) {
             type="button"
             disabled={!feature.ready}
             onClick={() => onOpen(feature.id)}
-            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-3xl bg-white/80 p-4 shadow-lg shadow-violet-900/5 ring-1 ring-violet-200 backdrop-blur transition active:scale-95 disabled:opacity-50 disabled:active:scale-100 dark:bg-white/10 dark:ring-white/10"
+            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-3xl bg-white/80 p-4 shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 backdrop-blur transition active:scale-95 disabled:opacity-50 disabled:active:scale-100 dark:bg-white/10 dark:ring-white/10"
           >
             <span className="text-5xl" aria-hidden="true">
               {feature.emoji}

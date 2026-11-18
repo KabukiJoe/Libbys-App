@@ -1,4 +1,4 @@
-# Libby's App
+# Memo
 
 A minimal phone-first native Android app (Capacitor): type a message, hit send, read your Kindroid kin's
 reply in a group chat. Protected by a shared password. Push notifications go through Firebase Cloud

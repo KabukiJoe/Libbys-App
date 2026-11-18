@@ -42,10 +42,10 @@ export default function App() {
   const goHome = () => setScreen('home');
 
   return (
-    <div className="flex h-full flex-col bg-gradient-to-br from-violet-100 via-fuchsia-50 to-sky-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-gray-900 dark:from-gray-950 dark:via-violet-950 dark:to-gray-950 dark:text-gray-50">
+    <div className="flex h-full flex-col bg-slate-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-gray-900 dark:bg-gray-950 dark:text-gray-50">
       {!unlocked && (
         <>
-          <Header title="Libby" />
+          <Header title="Memo" />
           <PasswordScreen onUnlock={() => setUnlocked(true)} />
         </>
       )}

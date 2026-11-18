@@ -61,7 +61,7 @@ export function initPush({ onOpenMantra, onMantraReceived, onError }) {
   initialized = true;
   if (onError) onBackgroundError = onError;
 
-  PushNotifications.createChannel({ id: 'mantra', name: 'Mantras', importance: 5 }).catch(console.error);
+  PushNotifications.createChannel({ id: 'mantra', name: 'General', importance: 5 }).catch(console.error);
 
   PushNotifications.addListener('registration', (token) => {
     subscribePush(token.value).then(() => settle(), settle);
