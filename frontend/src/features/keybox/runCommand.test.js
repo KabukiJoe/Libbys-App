@@ -190,7 +190,7 @@ describe('uncertain state after the actuating command', () => {
   })
 
   it('has German copy', () => {
-    expect(messageFor('uncertain')).toBe('Status unklar – die Box hat den Befehl evtl. ausgeführt. Bitte Box prüfen.')
+    expect(messageFor('uncertain')).toBe('Status unclear – the box may have carried out the command. Please check the box.')
   })
 })
 
@@ -248,7 +248,7 @@ describe('error detail', () => {
 
 describe('messageFor', () => {
   it('returns German copy', () => {
-    expect(messageFor('not-found')).toBe('Box nicht gefunden. Tastenfeld berühren und erneut versuchen.')
+    expect(messageFor('not-found')).toBe('Box not found. Touch the keypad to wake it and try again.')
     for (const r of ['bluetooth-off', 'permission', 'lock-error', 'failed', 'whatever']) {
       expect(messageFor(r).length).toBeGreaterThan(5)
     }

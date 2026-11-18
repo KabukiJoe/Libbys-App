@@ -9,12 +9,12 @@ export const MAX_ATTEMPTS = 3
 export { KeyboxError }
 
 const MESSAGES = {
-  'not-found': 'Box nicht gefunden. Tastenfeld berühren und erneut versuchen.',
-  'bluetooth-off': 'Bluetooth ist ausgeschaltet. Bitte Bluetooth aktivieren und erneut versuchen.',
-  permission: 'Bluetooth-Berechtigung fehlt. Bitte in den Systemeinstellungen die Bluetooth-Berechtigung für die App erlauben.',
-  'lock-error': 'Die Box hat den Befehl abgelehnt.',
-  uncertain: 'Status unklar – die Box hat den Befehl evtl. ausgeführt. Bitte Box prüfen.',
-  failed: 'Die Box konnte nach 3 Versuchen nicht erreicht werden. Tastenfeld berühren und erneut versuchen.',
+  'not-found': 'Box not found. Touch the keypad to wake it and try again.',
+  'bluetooth-off': 'Bluetooth is off. Turn Bluetooth on and try again.',
+  permission: 'Bluetooth permission is missing. Allow it for this app in the system settings.',
+  'lock-error': 'The box refused the command.',
+  uncertain: 'Status unclear – the box may have carried out the command. Please check the box.',
+  failed: 'Could not reach the box after 3 attempts. Touch the keypad to wake it and try again.',
 }
 
 export function messageFor(reason) {

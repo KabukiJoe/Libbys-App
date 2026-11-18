@@ -7,13 +7,13 @@ import { describeError } from './errors.js';
 import { KeyboxError, messageFor, runCommand } from './runCommand.js';
 
 const STEP_TEXT = {
-  searching: 'Suche Box…',
-  connecting: 'Verbinde…',
-  sending: 'Sende Befehl…',
-  done: 'Fertig…',
+  searching: 'Looking for the box…',
+  connecting: 'Connecting…',
+  sending: 'Sending command…',
+  done: 'Done…',
 };
 
-const DONE_TEXT = { open: 'Box geöffnet', close: 'Box geschlossen' };
+const DONE_TEXT = { open: 'Box opened' };
 
 export default function KeyboxScreen({ onHome }) {
   const [state, dispatch] = useReducer(keyboxReducer, initialState);
@@ -83,7 +83,7 @@ export default function KeyboxScreen({ onHome }) {
           <textarea
             value={importText}
             onChange={(e) => setImportText(e.target.value)}
-            placeholder="Inhalt der lockData.json hier einfügen"
+            placeholder="Paste the contents of lockData.json here"
             className="field-sizing-content min-h-32 max-h-[40vh] w-full resize-none rounded-2xl bg-white/80 p-4 text-lg shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 backdrop-blur placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-white/10 dark:ring-white/10 dark:placeholder:text-gray-500"
           />
           {importError && (
@@ -92,7 +92,7 @@ export default function KeyboxScreen({ onHome }) {
             </p>
           )}
           <ActionButton type="submit" disabled={busy || !importText.trim()}>
-            Speichern
+            Save
           </ActionButton>
           {replacing && (
             <ActionButton
@@ -103,7 +103,7 @@ export default function KeyboxScreen({ onHome }) {
                 setImportError('');
               }}
             >
-              Abbrechen
+              Cancel
             </ActionButton>
           )}
         </form>
@@ -111,17 +111,12 @@ export default function KeyboxScreen({ onHome }) {
 
       {hasData && (
         <div className="flex animate-fade-up flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <ActionButton type="button" disabled={busy} onClick={() => handleCommand('open')}>
-              Öffnen
-            </ActionButton>
-            <ActionButton type="button" disabled={busy} onClick={() => handleCommand('close')}>
-              Schließen
-            </ActionButton>
-          </div>
+          <ActionButton type="button" disabled={busy} onClick={() => handleCommand('open')}>
+            Open
+          </ActionButton>
 
           <div aria-live="polite">
-            {busy && <p className="text-center opacity-70">{STEP_TEXT[state.step] ?? 'Suche Box…'}</p>}
+            {busy && <p className="text-center opacity-70">{STEP_TEXT[state.step] ?? 'Looking for the box…'}</p>}
             {state.phase === 'done' && state.lastAction && (
               <p className="text-center font-semibold">{DONE_TEXT[state.lastAction]}</p>
             )}
@@ -141,7 +136,7 @@ export default function KeyboxScreen({ onHome }) {
                 setReplacing(true);
               }}
             >
-              Lock-Daten ersetzen
+              Replace lock data
             </ActionButton>
           )}
         </div>

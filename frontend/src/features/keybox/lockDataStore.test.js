@@ -12,7 +12,7 @@ vi.mock('@capacitor/preferences', () => ({
 import { parseLockData, loadLockData, saveLockData } from './lockDataStore.js'
 
 const KEY = 'keybox.lockData'
-const BAD = 'Ungültige Lock-Daten'
+const BAD = 'Invalid lock data'
 const entry = Array.isArray(fixtures) ? fixtures[0] : Object.values(fixtures)[0]
 const clone = () => structuredClone(entry.lockData)
 const without = (fn) => { const l = clone(); fn(l); return l }

@@ -1,7 +1,7 @@
 import { Preferences } from '@capacitor/preferences'
 
 const KEY = 'keybox.lockData'
-const INVALID = 'Ungültige Lock-Daten'
+const INVALID = 'Invalid lock data'
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 

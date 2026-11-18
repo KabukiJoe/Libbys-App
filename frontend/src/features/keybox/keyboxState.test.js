@@ -37,9 +37,9 @@ describe('keyboxReducer', () => {
 
   it('failed sets phase failed with message and no lastAction', () => {
     const busy = keyboxReducer({ phase: 'idle' }, { type: 'start', payload: 'open' })
-    const s = keyboxReducer(busy, { type: 'failed', payload: 'Box nicht gefunden' })
+    const s = keyboxReducer(busy, { type: 'failed', payload: 'Box not found' })
     expect(s.phase).toBe('failed')
-    expect(s.message).toBe('Box nicht gefunden')
+    expect(s.message).toBe('Box not found')
     expect(s.lastAction).toBeUndefined()
   })
 
