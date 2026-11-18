@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { TTLockClient } = require('ttlock-sdk-js');
+const { LockType, LockVersion } = require('ttlock-sdk-js/dist/constant/Lock');
 
 const LOCK_DATA_PATH = path.join(__dirname, 'lockData.json');
 
@@ -15,10 +16,48 @@ function loadLockData() {
   return JSON.parse(fs.readFileSync(LOCK_DATA_PATH, 'utf8'));
 }
 
-function saveLockData(client) {
+/** Lock type the SDK derives from the advertised protocol fields (TTBluetoothDevice / LockVersion.getLockType). */
+function lockTypeOf(device) {
+  return LockVersion.getLockType(device);
+}
+
+/** Human readable lock type for logging, e.g. "LOCK_TYPE_V3 (protocol 5.3, scene 1, org 1/1)". */
+function describeLockType(lock) {
+  const d = lock.device;
+  const name = LockType[lockTypeOf(d)] ?? `unknown(${d.lockType})`;
+  return `${name} (protocol ${d.protocolType}.${d.protocolVersion}, scene ${d.scene}, org ${d.groupId}/${d.orgId})`;
+}
+
+/**
+ * Header for the app's encodeCommand `header` option ({ protocolType, subVersion, scene, organization,
+ * subOrganization }), or undefined when the lock is LOCK_TYPE_V3 (the app's default header).
+ */
+function headerFor(device) {
+  const type = lockTypeOf(device);
+  if (type === LockType.LOCK_TYPE_V3) return undefined;
+  const v = LockVersion.getLockVersion(type);
+  const src = v
+    ? { protocolType: v.getProtocolType(), protocolVersion: v.getProtocolVersion(), scene: v.getScene(), groupId: v.getGroupId(), orgId: v.getOrgId() }
+    : device; // unknown type: use the advertised fields as they are
+  return {
+    protocolType: src.protocolType,
+    subVersion: src.protocolVersion,
+    scene: src.scene,
+    organization: src.groupId,
+    subOrganization: src.orgId,
+  };
+}
+
+/** `locks`: the TTLock objects seen in this run; a `header` is added to an entry only for a non-V3 lock. */
+function saveLockData(client, locks = []) {
   const data = client.getLockData();
   if (!data || data.length === 0) return false;
-  fs.writeFileSync(LOCK_DATA_PATH, JSON.stringify(data, null, 2));
+  const out = data.map((entry) => {
+    const lock = locks.find((l) => l.getAddress() === entry.address);
+    const header = lock && headerFor(lock.device);
+    return header ? { ...entry, header } : entry;
+  });
+  fs.writeFileSync(LOCK_DATA_PATH, JSON.stringify(out, null, 2));
   return true;
 }
 
@@ -65,4 +104,4 @@ async function withPairedLock(action, { timeoutMs = 60000 } = {}) {
   return client;
 }
 
-module.exports = { TTLockClient, LOCK_DATA_PATH, loadLockData, saveLockData, withPairedLock };
+module.exports = { TTLockClient, LOCK_DATA_PATH, loadLockData, saveLockData, withPairedLock, describeLockType, headerFor };

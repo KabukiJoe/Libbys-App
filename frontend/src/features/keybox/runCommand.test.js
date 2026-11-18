@@ -150,6 +150,102 @@ describe('runCommand', () => {
   })
 })
 
+describe('uncertain state after the actuating command', () => {
+  const afterCmd = (code) => Object.assign(new KeyboxProtocolError(code), { afterCommand: true })
+
+  it('crc on the actuating exchange ends uncertain after ONE attempt (no blind re-send)', async () => {
+    const { connect, closes } = makeConnect(['ok', 'ok', 'ok'])
+    unlockBox.mockRejectedValue(afterCmd('crc'))
+    expect(await reasonOf(runCommand('open', LOCK, { connect }))).toBe('uncertain')
+    expect(unlockBox).toHaveBeenCalledTimes(1)
+    expect(connect).toHaveBeenCalledTimes(1)
+    expect(closes[0]).toHaveBeenCalledTimes(1)
+  })
+
+  it('timeout after the actuating command is also uncertain (lockBox too)', async () => {
+    const { connect } = makeConnect(['ok', 'ok'])
+    lockBox.mockRejectedValue(afterCmd('timeout'))
+    expect(await reasonOf(runCommand('close', LOCK, { connect }))).toBe('uncertain')
+    expect(lockBox).toHaveBeenCalledTimes(1)
+  })
+
+  it('timeout on the first exchange (no afterCommand) is still retried and ends failed after 3', async () => {
+    const { connect } = makeConnect(['ok', 'ok', 'ok'])
+    unlockBox.mockRejectedValue(new KeyboxProtocolError('timeout'))
+    expect(await reasonOf(runCommand('open', LOCK, { connect }))).toBe('failed')
+    expect(unlockBox).toHaveBeenCalledTimes(3)
+  })
+
+  it('a failure before the command on attempt 1 and after it on attempt 2 ends uncertain', async () => {
+    const { connect } = makeConnect(['ok', 'ok', 'ok'])
+    unlockBox.mockRejectedValueOnce(new KeyboxProtocolError('timeout')).mockRejectedValueOnce(afterCmd('crc'))
+    expect(await reasonOf(runCommand('open', LOCK, { connect }))).toBe('uncertain')
+    expect(unlockBox).toHaveBeenCalledTimes(2)
+  })
+
+  it('lock-error stays lock-error (not uncertain)', async () => {
+    const { connect } = makeConnect(['ok'])
+    unlockBox.mockRejectedValue(new KeyboxProtocolError('lock-error'))
+    expect(await reasonOf(runCommand('open', LOCK, { connect }))).toBe('lock-error')
+  })
+
+  it('has German copy', () => {
+    expect(messageFor('uncertain')).toBe('Status unklar – die Box hat den Befehl evtl. ausgeführt. Bitte Box prüfen.')
+  })
+})
+
+describe('error detail', () => {
+  const run = async (p) => {
+    try {
+      await p
+    } catch (e) {
+      return e
+    }
+    throw new Error('did not throw')
+  }
+
+  it('lock-error carries the lock code and protocol code in detail', async () => {
+    const { connect } = makeConnect(['ok'])
+    unlockBox.mockRejectedValue(
+      Object.assign(new KeyboxProtocolError('lock-error', 'Unlock failed (response code 7)'), { lockCode: 7 }),
+    )
+    const e = await run(runCommand('open', LOCK, { connect }))
+    expect(e.detail).toContain('lock-error')
+    expect(e.detail).toContain('Lock-Code 7')
+  })
+
+  it('failed carries the underlying plugin message', async () => {
+    const { connect } = makeConnect([new Error('GATT error 133'), new Error('GATT error 133'), new Error('GATT error 133')])
+    const e = await run(runCommand('open', LOCK, { connect }))
+    expect(e.reason).toBe('failed')
+    expect(e.detail).toContain('GATT error 133')
+  })
+
+  it('uses the cause message of a KeyboxError from the transport', async () => {
+    const { connect } = makeConnect([
+      new KeyboxError('failed', 'x', { cause: new Error('native boom') }),
+      new Error('native boom'),
+      new Error('native boom'),
+    ])
+    const e = await run(runCommand('open', LOCK, { connect }))
+    expect(e.detail).toContain('native boom')
+  })
+
+  it('never contains lock keys', async () => {
+    const lock = {
+      address: 'AA:BB:CC:DD:EE:FF',
+      privateData: { aesKey: '0123456789abcdef0123456789abcdef', admin: { unlockKey: 987654321, adminPs: 555 } },
+    }
+    const { connect } = makeConnect(['ok', 'ok', 'ok'])
+    unlockBox.mockRejectedValue(new KeyboxProtocolError('timeout', 'No response from lock'))
+    const e = await run(runCommand('open', lock, { connect }))
+    expect(e.detail).toBeTruthy()
+    expect(e.detail).not.toContain(lock.privateData.aesKey)
+    expect(e.detail).not.toContain(String(lock.privateData.admin.unlockKey))
+    expect(e.detail.toLowerCase()).not.toContain('aeskey')
+  })
+})
+
 describe('messageFor', () => {
   it('returns German copy', () => {
     expect(messageFor('not-found')).toBe('Box nicht gefunden. Tastenfeld berühren und erneut versuchen.')

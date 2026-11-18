@@ -52,3 +52,23 @@ describe('keyboxReducer', () => {
     expect(s.lastAction).toBeUndefined()
   })
 })
+
+describe('keyboxReducer detail and replace', () => {
+  it('failed carries the optional technical detail', () => {
+    const busy = keyboxReducer({ phase: 'idle' }, { type: 'start', payload: 'open' })
+    expect(keyboxReducer(busy, { type: 'failed', payload: 'msg', detail: 'timeout' }).detail).toBe('timeout')
+    expect(keyboxReducer(busy, { type: 'failed', payload: 'msg' }).detail).toBeUndefined()
+  })
+
+  it('loaded with a new lock returns to a clean idle from idle/done/failed', () => {
+    for (const phase of ['idle', 'done', 'failed']) {
+      const s = keyboxReducer({ phase, message: 'x', detail: 'y', lastAction: 'open' }, { type: 'loaded', payload: lock })
+      expect(s).toEqual({ phase: 'idle' })
+    }
+  })
+
+  it('loaded while busy is ignored (a running command is never reset)', () => {
+    const busy = { phase: 'busy', pending: 'open' }
+    expect(keyboxReducer(busy, { type: 'loaded', payload: lock })).toBe(busy)
+  })
+})

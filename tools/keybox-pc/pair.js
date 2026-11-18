@@ -3,11 +3,17 @@
 //   node pair.js --scan-only   list nearby TTLock devices for 30s, change nothing
 //   node pair.js               pair the first uninitialised box found
 // Wake the box by touching its keypad ~5s BEFORE the scan starts (it stays awake 10-15s).
-const { TTLockClient, saveLockData } = require('./common');
+const { TTLockClient, saveLockData, describeLockType } = require('./common');
 
 const scanOnly = process.argv.includes('--scan-only');
 const client = new TTLockClient({});
 const seen = new Set();
+
+function warnIfNotV3(lock) {
+  if (!/^LOCK_TYPE_V3 /.test(describeLockType(lock))) {
+    console.warn('WARNING: lock type is not LOCK_TYPE_V3. Report this back before continuing (see README).');
+  }
+}
 let pairing = false;
 let scanTimer = null;
 
@@ -16,7 +22,8 @@ client.on('foundLock', async (lock) => {
   if (!seen.has(addr)) {
     seen.add(addr);
     console.log(`Found ${lock.getName()} ${addr} rssi=${lock.getRssi()} battery=${lock.getBattery()} ` +
-      `initialized=${lock.isInitialized()} paired=${lock.isPaired()}`);
+      `initialized=${lock.isInitialized()} paired=${lock.isPaired()} type=${describeLockType(lock)}`);
+    warnIfNotV3(lock);
   }
   if (scanOnly || pairing || lock.isInitialized()) return;
   pairing = true;
@@ -27,7 +34,9 @@ client.on('foundLock', async (lock) => {
     if (!(await lock.connect())) throw new Error('connect failed');
     const ok = await lock.initLock();
     if (!ok) throw new Error('initLock failed (retry; reset box again if needed)');
-    if (!saveLockData(client)) throw new Error('paired but no lock data available');
+    if (!saveLockData(client, [lock])) throw new Error('paired but no lock data available');
+    console.log(`Lock type: ${describeLockType(lock)}`);
+    warnIfNotV3(lock);
     console.log('Paired. lockData.json written. Do NOT commit it.');
     await lock.disconnect();
     process.exit(0);

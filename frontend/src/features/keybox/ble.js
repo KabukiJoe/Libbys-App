@@ -86,10 +86,11 @@ export async function openBleTransport(lockData, { onConnecting } = {}) {
     notifying = true
 
     const transport = {
-      // Write WITH response (session.js already chunks to <= 20 bytes).
+      // Write WITHOUT response, like the SDK (TTBluetoothDevice.writeCharacteristic -> characteristic.write(chunk, true);
+      // noble's 2nd argument is withoutResponse). session.js already chunks to <= 20 bytes.
       write: async (bytes) => {
         const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-        await BleClient.write(deviceId, SERVICE_UUID, WRITE_UUID, view)
+        await BleClient.writeWithoutResponse(deviceId, SERVICE_UUID, WRITE_UUID, view)
       },
       onNotify: (cb) => {
         listeners.add(cb)

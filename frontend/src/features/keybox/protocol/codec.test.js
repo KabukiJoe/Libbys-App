@@ -20,6 +20,14 @@ describe('encodeCommand', () => {
     expect(hex(out)).toBe(f.bytesHex)
   })
 
+  it('uses a non-default header option for the header bytes', async () => {
+    const out = await encodeCommand({
+      command: 0x47,
+      header: { protocolType: 5, subVersion: 4, scene: 7, organization: 2, subOrganization: 3 },
+    })
+    expect(hex(out.subarray(0, 9))).toBe('7f5a05040700020003')
+  })
+
   it('throws when data is present but no key given', async () => {
     await expect(encodeCommand({ command: 1, data: new Uint8Array([1]) })).rejects.toBeInstanceOf(
       KeyboxProtocolError,

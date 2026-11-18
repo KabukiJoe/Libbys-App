@@ -2,7 +2,7 @@
 // Must import cleanly in Node: the native plugin is only loaded lazily inside ble.js.
 import { unlockBox, lockBox } from './protocol/session.js'
 import { openBleTransport } from './ble.js'
-import { KeyboxError } from './errors.js'
+import { KeyboxError, describeError } from './errors.js'
 
 export const MAX_ATTEMPTS = 3
 
@@ -13,6 +13,7 @@ const MESSAGES = {
   'bluetooth-off': 'Bluetooth ist ausgeschaltet. Bitte Bluetooth aktivieren und erneut versuchen.',
   permission: 'Bluetooth-Berechtigung fehlt. Bitte in den Systemeinstellungen die Bluetooth-Berechtigung für die App erlauben.',
   'lock-error': 'Die Box hat den Befehl abgelehnt.',
+  uncertain: 'Status unklar – die Box hat den Befehl evtl. ausgeführt. Bitte Box prüfen.',
   failed: 'Die Box konnte nach 3 Versuchen nicht erreicht werden. Tastenfeld berühren und erneut versuchen.',
 }
 
@@ -20,16 +21,21 @@ export function messageFor(reason) {
   return MESSAGES[reason] ?? MESSAGES.failed
 }
 
-const NOT_RETRIED = new Set(['not-found', 'bluetooth-off', 'permission', 'lock-error'])
+const NOT_RETRIED = new Set(['not-found', 'bluetooth-off', 'permission', 'lock-error', 'uncertain'])
 
 /** Map any error to a KeyboxError and decide whether another attempt makes sense. */
 function classify(err) {
   if (err instanceof KeyboxError) return { error: err, retry: !NOT_RETRIED.has(err.reason) }
+  const detail = describeError(err)
   // A lock-sent refusal must never be retried silently.
   if (err?.name === 'KeyboxProtocolError' && err.code === 'lock-error') {
-    return { error: new KeyboxError('lock-error', err.message, { cause: err }), retry: false }
+    return { error: new KeyboxError('lock-error', err.message, { cause: err, detail }), retry: false }
   }
-  return { error: new KeyboxError('failed', err?.message, { cause: err }), retry: true }
+  // The actuating command was already written: the box may have moved. No blind re-send; report uncertainty.
+  if (err?.afterCommand) {
+    return { error: new KeyboxError('uncertain', err.message, { cause: err, detail }), retry: false }
+  }
+  return { error: new KeyboxError('failed', err?.message, { cause: err, detail }), retry: true }
 }
 
 async function safeClose(conn) {
@@ -81,5 +87,5 @@ export async function runCommand(kind, lockData, { onState, connect = openBleTra
       if (!retry) throw error
     }
   }
-  throw new KeyboxError('failed', lastError?.message, { cause: lastError })
+  throw new KeyboxError('failed', lastError?.message, { cause: lastError, detail: describeError(lastError) })
 }

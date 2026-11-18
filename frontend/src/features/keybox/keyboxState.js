@@ -4,6 +4,7 @@ export const initialState = { phase: 'loading' }
 export function keyboxReducer(state, action) {
   switch (action.type) {
     case 'loaded':
+      if (state.phase === 'busy') return state
       return { phase: action.payload ? 'idle' : 'no-data' }
     case 'start':
       if (state.phase === 'busy') return state
@@ -14,7 +15,7 @@ export function keyboxReducer(state, action) {
       if (state.phase !== 'busy') return state
       return { phase: 'done', lastAction: state.pending }
     case 'failed':
-      return { phase: 'failed', message: action.payload, lastAction: undefined }
+      return { phase: 'failed', message: action.payload, detail: action.detail, lastAction: undefined }
     default:
       return state
   }

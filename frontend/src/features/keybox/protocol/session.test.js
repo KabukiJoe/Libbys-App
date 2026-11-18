@@ -94,3 +94,60 @@ describe.each([
     expect(t.listenerCount).toBe(0)
   })
 })
+
+describe('afterCommand marker', () => {
+  it('is set on a bad CRC of the actuating reply', async () => {
+    const bad = wire('response-unlock-ok')
+    bad[bad.length - 3] ^= 0xff
+    const t = createFakeTransport([[wire('response-check-user-time-ok')], [bad]])
+    await expect(unlockBox(t, lockData)).rejects.toMatchObject({ code: 'crc', afterCommand: true })
+  })
+
+  it('is set on a timeout of the actuating reply', async () => {
+    const t = createFakeTransport([[wire('response-check-user-time-ok')], null])
+    const assertion = expect(lockBox(t, lockData)).rejects.toMatchObject({ code: 'timeout', afterCommand: true })
+    await vi.waitFor(() => expect(t.requests).toHaveLength(2))
+    await vi.advanceTimersByTimeAsync(5000)
+    await assertion
+  })
+
+  it('is NOT set for errors of the first exchange', async () => {
+    const t = createFakeTransport([null])
+    const assertion = expect(unlockBox(t, lockData)).rejects.toSatisfy((e) => e.code === 'timeout' && !e.afterCommand)
+    await vi.waitFor(() => expect(t.requests).toHaveLength(1))
+    await vi.advanceTimersByTimeAsync(5000)
+    await assertion
+  })
+
+  it('is NOT set when the actuating write itself fails', async () => {
+    const t = createFakeTransport([[wire('response-check-user-time-ok')]])
+    const orig = t.write.bind(t)
+    t.write = async (b) => {
+      if (t.requests.length === 1) throw new Error('ble down')
+      return orig(b)
+    }
+    await expect(unlockBox(t, lockData)).rejects.toSatisfy((e) => e.message === 'ble down' && !e.afterCommand)
+  })
+
+  it('is NOT set on a lock-error response', async () => {
+    const t = createFakeTransport([[wire('response-check-user-time-ok')], [wire('response-unlock-failed')]])
+    await expect(unlockBox(t, lockData)).rejects.toSatisfy((e) => e.code === 'lock-error' && !e.afterCommand)
+  })
+})
+
+describe('lockData.header', () => {
+  const header = { protocolType: 5, subVersion: 4, scene: 7, organization: 2, subOrganization: 3 }
+
+  it('puts the lockData header into every request frame', async () => {
+    const t = createFakeTransport([[wire('response-check-user-time-ok')], [wire('response-unlock-ok')]])
+    await unlockBox(t, { ...lockData, header })
+    expect(t.requests).toHaveLength(2)
+    for (const r of t.requests) expect(Array.from(r.slice(2, 9))).toEqual([5, 4, 7, 0, 2, 0, 3])
+  })
+
+  it('defaults to the V3 header without lockData.header', async () => {
+    const t = createFakeTransport([[wire('response-check-user-time-ok')], [wire('response-unlock-ok')]])
+    await unlockBox(t, lockData)
+    expect(Array.from(t.requests[0].slice(2, 9))).toEqual([5, 3, 1, 0, 1, 0, 1])
+  })
+})

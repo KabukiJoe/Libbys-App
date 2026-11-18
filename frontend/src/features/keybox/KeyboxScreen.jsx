@@ -3,6 +3,7 @@ import ActionButton from '../../components/ActionButton.jsx';
 import Header from '../../components/Header.jsx';
 import { initialState, keyboxReducer } from './keyboxState.js';
 import { loadLockData, parseLockData, saveLockData } from './lockDataStore.js';
+import { describeError } from './errors.js';
 import { KeyboxError, messageFor, runCommand } from './runCommand.js';
 
 const STEP_TEXT = {
@@ -19,6 +20,7 @@ export default function KeyboxScreen({ onHome }) {
   const [lockData, setLockData] = useState(null);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
+  const [replacing, setReplacing] = useState(false);
   const mounted = useRef(true);
   const running = useRef(false);
 
@@ -42,6 +44,8 @@ export default function KeyboxScreen({ onHome }) {
       if (!mounted.current) return;
       setLockData(lock);
       setImportError('');
+      setImportText('');
+      setReplacing(false);
       dispatch({ type: 'loaded', payload: lock });
     } catch (err) {
       if (mounted.current) setImportError(err.message);
@@ -59,7 +63,8 @@ export default function KeyboxScreen({ onHome }) {
       if (mounted.current) dispatch({ type: 'succeeded' });
     } catch (err) {
       const reason = err instanceof KeyboxError ? err.reason : 'failed';
-      if (mounted.current) dispatch({ type: 'failed', payload: messageFor(reason) });
+      const detail = err instanceof KeyboxError ? err.detail : describeError(err);
+      if (mounted.current) dispatch({ type: 'failed', payload: messageFor(reason), detail });
     } finally {
       running.current = false;
     }
@@ -67,12 +72,13 @@ export default function KeyboxScreen({ onHome }) {
 
   const busy = state.phase === 'busy';
   const hasData = state.phase !== 'loading' && state.phase !== 'no-data';
+  const showImport = state.phase === 'no-data' || (hasData && replacing && !busy);
 
   return (
     <>
       <Header title="Keybox" onBack={busy ? undefined : onHome} />
 
-      {state.phase === 'no-data' && (
+      {showImport && (
         <form onSubmit={handleImport} className="flex animate-fade-up flex-col gap-3">
           <textarea
             value={importText}
@@ -85,9 +91,21 @@ export default function KeyboxScreen({ onHome }) {
               {importError}
             </p>
           )}
-          <ActionButton type="submit" disabled={!importText.trim()}>
+          <ActionButton type="submit" disabled={busy || !importText.trim()}>
             Speichern
           </ActionButton>
+          {replacing && (
+            <ActionButton
+              type="button"
+              onClick={() => {
+                setReplacing(false);
+                setImportText('');
+                setImportError('');
+              }}
+            >
+              Abbrechen
+            </ActionButton>
+          )}
         </form>
       )}
 
@@ -108,11 +126,24 @@ export default function KeyboxScreen({ onHome }) {
               <p className="text-center font-semibold">{DONE_TEXT[state.lastAction]}</p>
             )}
             {state.phase === 'failed' && (
-              <p className="rounded-2xl bg-red-50 px-4 py-3 text-red-700 ring-1 ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-900">
-                {state.message}
-              </p>
+              <div className="rounded-2xl bg-red-50 px-4 py-3 text-red-700 ring-1 ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-900">
+                <p>{state.message}</p>
+                {state.detail && <p className="mt-1 break-words text-sm opacity-70">{state.detail}</p>}
+              </div>
             )}
           </div>
+
+          {!busy && !replacing && (
+            <ActionButton
+              type="button"
+              onClick={() => {
+                setImportError('');
+                setReplacing(true);
+              }}
+            >
+              Lock-Daten ersetzen
+            </ActionButton>
+          )}
         </div>
       )}
     </>

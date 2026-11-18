@@ -4,7 +4,7 @@
 /**
  * @typedef {Object} Transport
  * @property {(bytes: Uint8Array) => Promise<void>} write
- *   Write one chunk (<= 20 bytes) to the write characteristic, with response.
+ *   Write one chunk (<= 20 bytes) to the write characteristic, WITHOUT response (as the SDK does).
  * @property {(cb: (bytes: Uint8Array) => void) => (() => void)} onNotify
  *   Subscribe to notification chunks; returns the unsubscribe function.
  */
@@ -41,7 +41,7 @@ function concat(a, b) {
 }
 
 /** Send one command and resolve with the decoded response of the same command type. */
-async function exchange(transport, { command, data, aesKey, header }) {
+async function exchange(transport, { command, data, aesKey, header, actuating = false }) {
   const envelope = await encodeCommand({ command, data, aesKey, header })
   const wire = concat(envelope, CRLF)
 
@@ -51,9 +51,12 @@ async function exchange(transport, { command, data, aesKey, header }) {
     return await new Promise((resolve, reject) => {
       let buf = new Uint8Array(0)
       let done = false
+      let written = false
       const finish = (fn, v) => {
         if (done) return
         done = true
+        // Once the actuating command is fully written, any failure leaves the box state unknown.
+        if (fn === reject && actuating && written && v && typeof v === 'object') v.afterCommand = true
         fn(v)
       }
       timer = setTimeout(
@@ -71,13 +74,18 @@ async function exchange(transport, { command, data, aesKey, header }) {
         if (frame.length > 9 && frame[9] !== command) return
         decodeResponse(frame, aesKey).then(
           (r) => finish(resolve, r),
-          (e) => finish(reject, e),
+          (e) => {
+            // A reply that fails to decode proves the box received the complete command.
+            if (actuating && e && typeof e === 'object') e.afterCommand = true
+            finish(reject, e)
+          },
         )
       })
       ;(async () => {
         for (let i = 0; i < wire.length; i += WRITE_CHUNK_SIZE) {
           await transport.write(wire.slice(i, i + WRITE_CHUNK_SIZE))
         }
+        written = true
       })().catch((e) => finish(reject, e))
     })
   } finally {
@@ -110,7 +118,7 @@ async function operate(transport, lockData, command, name) {
   const psFromLock = new DataView(check.data.buffer, check.data.byteOffset, 4).getUint32(0, false)
   const sum = (psFromLock + lockData.privateData.admin.unlockKey) >>> 0
   const now = Math.floor(Date.now() / 1000)
-  const r = await exchange(transport, { command, data: u32be(sum, now), aesKey, header })
+  const r = await exchange(transport, { command, data: u32be(sum, now), aesKey, header, actuating: true })
   requireSuccess(r, name)
   return r.data.length > 0 ? { battery: r.data[0] } : {}
 }
