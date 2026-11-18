@@ -43,10 +43,11 @@ export async function encodeCommand({ command, data = new Uint8Array(0), aesKey,
 
 /**
  * Decode a response envelope (without 0d0a suffix).
- * Returns { command, response, data, plaintext }: plaintext = decrypted body
+ * Returns { command, commandType, response, data, plaintext, crcOk }: plaintext = decrypted body
  * [commandType, responseCode, ...payload]; response = responseCode; data = payload.
+ * With `{ allowBadCrc: true }` a checksum mismatch does not throw; `crcOk` is then false.
  */
-export async function decodeResponse(bytes, aesKey) {
+export async function decodeResponse(bytes, aesKey, { allowBadCrc = false } = {}) {
   if (bytes.length < 13) throw new KeyboxProtocolError('truncated', 'Frame too short')
   const protocolType = bytes[2]
   if (!(protocolType >= 5 || protocolType === 0)) {
@@ -54,21 +55,30 @@ export async function decodeResponse(bytes, aesKey) {
   }
   const len = bytes[11]
   if (bytes.length < 12 + len + 1) throw new KeyboxProtocolError('truncated', 'Frame truncated')
-  if (crc8(bytes.subarray(0, bytes.length - 1)) !== bytes[bytes.length - 1]) {
-    throw new KeyboxProtocolError('crc', 'Bad CRC')
-  }
+  // `allowBadCrc`: decode anyway and report `crcOk: false`, so the caller can judge the content. If the body
+  // then does not decrypt, the failure is still reported as 'crc' (the checksum was the first sign of damage).
+  const crcOk = crc8(bytes.subarray(0, bytes.length - 1)) === bytes[bytes.length - 1]
+  if (!crcOk && !allowBadCrc) throw new KeyboxProtocolError('crc', 'Bad CRC')
   const command = bytes[9]
   const body = bytes.subarray(12, 12 + len)
   if (len === 0) {
-    return { command, commandType: undefined, response: undefined, data: new Uint8Array(0), plaintext: new Uint8Array(0) }
+    return {
+      command,
+      commandType: undefined,
+      response: undefined,
+      data: new Uint8Array(0),
+      plaintext: new Uint8Array(0),
+      crcOk,
+    }
   }
   if (!aesKey) throw new KeyboxProtocolError('no-key', 'AES key has not been set')
   let plaintext
   try {
     plaintext = await aesDecrypt(aesKey, body)
   } catch {
+    if (!crcOk) throw new KeyboxProtocolError('crc', 'Bad CRC')
     throw new KeyboxProtocolError('decrypt', 'AES decryption failed')
   }
   // `command` is the envelope byte (0x54 COMM_RESPONSE on replies); `commandType` is the command answered.
-  return { command, commandType: plaintext[0], response: plaintext[1], data: plaintext.slice(2), plaintext }
+  return { command, commandType: plaintext[0], response: plaintext[1], data: plaintext.slice(2), plaintext, crcOk }
 }

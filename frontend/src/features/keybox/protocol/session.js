@@ -75,10 +75,19 @@ async function exchange(transport, { command, data, aesKey, header, actuating = 
         // Replies carry COMM_RESPONSE (0x54) in the envelope and the answered command in plaintext[0].
         // Anything else (e.g. SearchBicycleStatus) is a stray message: ignore it.
         if (frame.length > 9 && frame[9] !== COMM_RESPONSE) return
-        decodeResponse(frame, aesKey).then(
+        // The actuating reply may carry a wrong CRC byte on this box although it is intact; the
+        // CRC is only an error check (AES protects the content), so judge the decrypted reply instead.
+        decodeResponse(frame, aesKey, { allowBadCrc: actuating }).then(
           (r) => {
             // A reply to another command: keep waiting for ours.
             if (r.commandType !== command) return
+            // Bad CRC: trust it only if it decrypts to a success for exactly this command.
+            if (!r.crcOk && r.response !== RESPONSE_SUCCESS) {
+              const err = new KeyboxProtocolError('crc', 'Bad CRC')
+              err.afterCommand = true
+              finish(reject, err)
+              return
+            }
             finish(resolve, r)
           },
           (e) => {

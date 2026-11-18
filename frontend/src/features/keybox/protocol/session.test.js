@@ -77,12 +77,40 @@ describe.each([
     await expect(fn(t, lockData)).resolves.toEqual({ battery: 88 })
   })
 
-  it('treats a bad CRC on the awaited response as a crc error', async () => {
-    const bad = wire(ok)
+  it('stays strict about a bad CRC on the check-user-time reply (its value feeds the command)', async () => {
+    const bad = wire('response-check-user-time-ok')
     bad[bad.length - 3] ^= 0xff // CRC byte precedes 0d0a
-    const t = createFakeTransport([[wire('response-check-user-time-ok')], [bad]])
-    await expect(fn(t, lockData)).rejects.toMatchObject({ code: 'crc' })
+    const t = createFakeTransport([[bad]])
+    const err = await fn(t, lockData).catch((e) => e)
+    expect(err).toMatchObject({ code: 'crc' })
+    expect(err.afterCommand).toBeUndefined()
+    expect(t.requests).toHaveLength(1) // the actuating command was never sent
     expect(t.listenerCount).toBe(0)
+  })
+
+  // This box answers unlock with a wrong CRC byte although the reply is intact and says success
+  // (observed on the real box 2026-11-18; the SDK documents the same quirk).
+  it('accepts a bad CRC on the actuating reply when it decrypts to success for this command', async () => {
+    const bad = wire(ok)
+    bad[bad.length - 3] ^= 0xff
+    const t = createFakeTransport([[wire('response-check-user-time-ok')], [bad]])
+    await expect(fn(t, lockData)).resolves.toEqual({ battery: 88 })
+    expect(t.listenerCount).toBe(0)
+  })
+
+  it('still rejects a bad-CRC actuating reply that decrypts to a failure', async () => {
+    const bad = wire(failed)
+    bad[bad.length - 3] ^= 0xff
+    const t = createFakeTransport([[wire('response-check-user-time-ok')], [bad]])
+    await expect(fn(t, lockData)).rejects.toMatchObject({ code: 'crc', afterCommand: true })
+  })
+
+  it('still rejects a bad-CRC actuating reply whose body does not decrypt', async () => {
+    const bad = wire(ok)
+    bad[14] ^= 0xff // inside the encrypted body (header is 12 bytes)
+    bad[bad.length - 3] ^= 0xff
+    const t = createFakeTransport([[wire('response-check-user-time-ok')], [bad]])
+    await expect(fn(t, lockData)).rejects.toMatchObject({ code: 'crc', afterCommand: true })
   })
 
   it('unsubscribes when write fails', async () => {
@@ -96,8 +124,9 @@ describe.each([
 })
 
 describe('afterCommand marker', () => {
-  it('is set on a bad CRC of the actuating reply', async () => {
+  it('is set on a bad CRC of the actuating reply that cannot be trusted', async () => {
     const bad = wire('response-unlock-ok')
+    bad[14] ^= 0xff
     bad[bad.length - 3] ^= 0xff
     const t = createFakeTransport([[wire('response-check-user-time-ok')], [bad]])
     await expect(unlockBox(t, lockData)).rejects.toMatchObject({ code: 'crc', afterCommand: true })
